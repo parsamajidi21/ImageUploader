@@ -54,14 +54,14 @@ char *main_errorMessage;
 
 /* modern look, relies on the theme's named colors so it works with dark themes too */
 static const char css[] =
-    ".usbimager-card { background-color: @theme_base_color; border: 1px solid alpha(@theme_fg_color, 0.12);"
+    ".imageuploader-card { background-color: @theme_base_color; border: 1px solid alpha(@theme_fg_color, 0.12);"
     "  border-radius: 12px; padding: 14px; }"
-    ".usbimager-icon { color: alpha(@theme_fg_color, 0.6); }"
-    ".usbimager-action { padding: 8px 18px; font-weight: bold; border-radius: 8px; }"
-    ".usbimager-action image { margin-right: 6px; }"
-    ".usbimager-card entry, .usbimager-card combobox button { min-height: 34px; }"
+    ".imageuploader-icon { color: alpha(@theme_fg_color, 0.6); }"
+    ".imageuploader-action { padding: 8px 18px; font-weight: bold; border-radius: 8px; }"
+    ".imageuploader-action image { margin-right: 6px; }"
+    ".imageuploader-card entry, .imageuploader-card combobox button { min-height: 34px; }"
     "progressbar trough, progressbar progress { min-height: 8px; border-radius: 4px; }"
-    ".usbimager-status { font-size: smaller; }";
+    ".imageuploader-status { font-size: smaller; }";
 
 /**
  * Enable or disable the input widgets while an operation is in progress
@@ -302,7 +302,7 @@ static void *readerRoutine(void *data)
         }
         i = strlen(fn);
         lt = localtime(&now);
-        snprintf(fn + i, sizeof(fn)-1-i, "/usbimager-%04d%02d%02dT%02d%02d.dd%s",
+        snprintf(fn + i, sizeof(fn)-1-i, "/imageuploader-%04d%02d%02dT%02d%02d.dd%s",
             lt->tm_year+1900, lt->tm_mon+1, lt->tm_mday, lt->tm_hour, lt->tm_min,
             needCompress ? ".zst" : "");
         gtk_entry_set_text(GTK_ENTRY(source), fn);
@@ -465,19 +465,19 @@ static void onDragDataReceived(GtkWidget *w, GdkDragContext *ctx, gint x, gint y
 
 static void onAboutClicked(GtkButton *btn, gpointer data)
 {
-    const char *authors[] = { "bzt", NULL };
+    const char *authors[] = { "Parsa Majidi", "bzt (original USBImager)", NULL };
     (void)btn;
     (void)data;
     gtk_show_about_dialog(GTK_WINDOW(mainwin),
-        "program-name", "USBImager",
-        "version", USBIMAGER_VERSION
-#ifdef USBIMAGER_BUILD
-        " (build " USBIMAGER_BUILD ")"
+        "program-name", "ImageUploader",
+        "version", IMAGEUPLOADER_VERSION
+#ifdef IMAGEUPLOADER_BUILD
+        " (build " IMAGEUPLOADER_BUILD ")"
 #endif
         ,
         "comments", "Writes compressed disk images to USB drives and creates backups",
-        "website", "https://gitlab.com/bztsrc/usbimager",
-        "copyright", "Copyright (C) 2020 bzt",
+        "website", "https://parsamajidi21.github.io/ImageUploader/",
+        "copyright", "Copyright (C) 2026 Parsa Majidi\nBased on USBImager, Copyright (C) 2020 bzt",
         "license-type", GTK_LICENSE_MIT_X11,
         "authors", authors,
         "logo", gtk_window_get_icon(GTK_WINDOW(mainwin)),
@@ -515,14 +515,14 @@ static GtkWidget *newCard(void)
     GtkWidget *card = gtk_grid_new();
     gtk_grid_set_row_spacing(GTK_GRID(card), 10);
     gtk_grid_set_column_spacing(GTK_GRID(card), 10);
-    gtk_style_context_add_class(gtk_widget_get_style_context(card), "usbimager-card");
+    gtk_style_context_add_class(gtk_widget_get_style_context(card), "imageuploader-card");
     return card;
 }
 
 static GtkWidget *newIcon(const char *name)
 {
     GtkWidget *icon = gtk_image_new_from_icon_name(name, GTK_ICON_SIZE_LARGE_TOOLBAR);
-    gtk_style_context_add_class(gtk_widget_get_style_context(icon), "usbimager-icon");
+    gtk_style_context_add_class(gtk_widget_get_style_context(icon), "imageuploader-icon");
     return icon;
 }
 
@@ -539,7 +539,7 @@ static GtkWidget *newActionButton(const char *icon, const char *label, const cha
     GtkWidget *btn = gtk_button_new_with_label(label);
     gtk_button_set_image(GTK_BUTTON(btn), gtk_image_new_from_icon_name(icon, GTK_ICON_SIZE_BUTTON));
     gtk_button_set_always_show_image(GTK_BUTTON(btn), TRUE);
-    gtk_style_context_add_class(gtk_widget_get_style_context(btn), "usbimager-action");
+    gtk_style_context_add_class(gtk_widget_get_style_context(btn), "imageuploader-action");
     if(style) gtk_style_context_add_class(gtk_widget_get_style_context(btn), style);
     gtk_widget_set_hexpand(btn, TRUE);
     g_signal_connect(btn, "clicked", cb, NULL);
@@ -565,24 +565,24 @@ int main(int argc, char **argv)
     GtkWidget *vbox, *hbox, *header, *card, *linked;
     GtkCssProvider *provider;
     GdkPixbuf *icon;
-    char help[] = "USBImager " USBIMAGER_VERSION
+    char help[] = "ImageUploader " IMAGEUPLOADER_VERSION
 #if USE_WRONLY
         "_wo"
 #endif
 #if USE_UDISKS2
         "_udisks2"
 #endif
-#ifdef USBIMAGER_BUILD
-        " (build " USBIMAGER_BUILD ")"
+#ifdef IMAGEUPLOADER_BUILD
+        " (build " IMAGEUPLOADER_BUILD ")"
 #endif
-        " - MIT license, Copyright (C) 2020 bzt\r\n\r\n"
-        "./usbimager [-v|-vv|-a|-f|-s[baud]|-S[baud]|-1|-2|-3|-4|-5|-6|-7|-8|-9|-L(xx)|-m(x)] <backup path>\r\n\r\n"
-        "https://gitlab.com/bztsrc/usbimager\r\n\r\n";
+        " - MIT license, Copyright (C) 2026 Parsa Majidi, based on USBImager (C) 2020 bzt\r\n\r\n"
+        "./imageuploader [-v|-vv|-a|-f|-s[baud]|-S[baud]|-1|-2|-3|-4|-5|-6|-7|-8|-9|-L(xx)|-m(x)] <backup path>\r\n\r\n"
+        "https://github.com/parsamajidi21/ImageUploader\r\n\r\n";
 
     for(j = 1; j < argc && argv[j]; j++) {
         if(argv[j][0] == '-') {
             if(!strcmp(argv[j], "--version")) {
-                printf(USBIMAGER_VERSION "\n");
+                printf(IMAGEUPLOADER_VERSION "\n");
                 exit(0);
             }
             if(!strcmp(argv[j], "--help")) {
@@ -658,7 +658,7 @@ int main(int argc, char **argv)
     g_object_unref(provider);
 
     mainwin = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-    gtk_window_set_title(GTK_WINDOW(mainwin), "USBImager " USBIMAGER_VERSION);
+    gtk_window_set_title(GTK_WINDOW(mainwin), "ImageUploader " IMAGEUPLOADER_VERSION);
     gtk_window_set_default_size(GTK_WINDOW(mainwin), 520, -1);
     icon = getIcon();
     gtk_window_set_icon(GTK_WINDOW(mainwin), icon);
@@ -671,8 +671,8 @@ int main(int argc, char **argv)
     g_signal_connect(mainwin, "drag-data-received", G_CALLBACK(onDragDataReceived), NULL);
 
     header = gtk_header_bar_new();
-    gtk_header_bar_set_title(GTK_HEADER_BAR(header), "USBImager");
-    gtk_header_bar_set_subtitle(GTK_HEADER_BAR(header), USBIMAGER_VERSION);
+    gtk_header_bar_set_title(GTK_HEADER_BAR(header), "ImageUploader");
+    gtk_header_bar_set_subtitle(GTK_HEADER_BAR(header), IMAGEUPLOADER_VERSION);
     gtk_header_bar_set_show_close_button(GTK_HEADER_BAR(header), TRUE);
     gtk_header_bar_pack_end(GTK_HEADER_BAR(header), newIconButton("help-about-symbolic", NULL, G_CALLBACK(onAboutClicked)));
     gtk_window_set_titlebar(GTK_WINDOW(mainwin), header);
@@ -758,7 +758,7 @@ int main(int argc, char **argv)
     gtk_label_set_xalign(GTK_LABEL(status), 0);
     gtk_label_set_ellipsize(GTK_LABEL(status), PANGO_ELLIPSIZE_END);
     gtk_style_context_add_class(gtk_widget_get_style_context(status), "dim-label");
-    gtk_style_context_add_class(gtk_widget_get_style_context(status), "usbimager-status");
+    gtk_style_context_add_class(gtk_widget_get_style_context(status), "imageuploader-status");
     gtk_box_pack_start(GTK_BOX(hbox), status, FALSE, FALSE, 0);
 
     doRefreshTarget();

@@ -209,7 +209,7 @@ int mystrlen(const char *s)
 
 void bg(void) {
     int i;
-    printf("\033[36;44;1m\033[H\033[J USBImager " USBIMAGER_VERSION "\n %s", t[PRE]);
+    printf("\033[36;44;1m\033[H\033[J ImageUploader " IMAGEUPLOADER_VERSION "\n %s", t[PRE]);
     for(i = 0; i < col-2; i++) printf(t[VER]);
     printf("%s\033[%d;1H\033[0m\033[%d;44m[1] UTF-8, [2] VT100, [3] VT52",t[SUF],row, t == terms[2]?36:94);
 }
@@ -552,7 +552,7 @@ static void *readerRoutine(void)
         }
         i = strlen(fn);
         lt = localtime(&now);
-        snprintf(fn + i, sizeof(fn)-1-i, "/usbimager-%04d%02d%02dT%02d%02d.dd%s",
+        snprintf(fn + i, sizeof(fn)-1-i, "/imageuploader-%04d%02d%02dT%02d%02d.dd%s",
             lt->tm_year+1900, lt->tm_mon+1, lt->tm_mday, lt->tm_hour, lt->tm_min,
             needCompress ? ".zst" : "");
         strcpy(source, fn);
@@ -695,21 +695,21 @@ int main(int argc, char **argv)
 {
     int i, j;
     char *lc = getenv("LANG"), c;
-    char help[] = "USBImager " USBIMAGER_VERSION
+    char help[] = "ImageUploader " IMAGEUPLOADER_VERSION
 #if USE_WRONLY
         "_wo"
 #endif
-#ifdef USBIMAGER_BUILD
-        " (build " USBIMAGER_BUILD ")"
+#ifdef IMAGEUPLOADER_BUILD
+        " (build " IMAGEUPLOADER_BUILD ")"
 #endif
-        " - MIT license, Copyright (C) 2020 bzt\r\n\r\n"
-        "./usbimager [-v|-vv|-a|-f|-s[baud]|-S[baud]|-1|-2|-3|-4|-5|-6|-7|-8|-9|-L(xx)|-m(x)] <backup path>\r\n\r\n"
-        "https://gitlab.com/bztsrc/usbimager\r\n\r\n";
+        " - MIT license, Copyright (C) 2026 Parsa Majidi, based on USBImager (C) 2020 bzt\r\n\r\n"
+        "./imageuploader [-v|-vv|-a|-f|-s[baud]|-S[baud]|-1|-2|-3|-4|-5|-6|-7|-8|-9|-L(xx)|-m(x)] <backup path>\r\n\r\n"
+        "https://github.com/parsamajidi21/ImageUploader\r\n\r\n";
 
     for(j = 1; j < argc && argv[j]; j++) {
         if(argv[j][0] == '-') {
             if(!strcmp(argv[j], "--version")) {
-                printf(USBIMAGER_VERSION "\n");
+                printf(IMAGEUPLOADER_VERSION "\n");
                 exit(0);
             }
             if(!strcmp(argv[j], "--help")) {

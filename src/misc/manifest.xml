@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
   <assemblyIdentity
-      version="1.0.10.0"
+      version="1.0.0.0"
       processorArchitecture="*"
-      name="USBImager"
+      name="ImageUploader"
       type="win32"
   />
   <description>Write out an image file to an USB device.</description>

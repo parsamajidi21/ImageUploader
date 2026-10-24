@@ -1,10 +1,10 @@
 [Desktop Entry]
-Version=1.0.10
+Version=1.0.0
 Type=Application
-Name=USBImager
+Name=ImageUploader
 Comment=Write image files to USB devices
-Exec=/usr/bin/usbimager
-Icon=usbimager
+Exec=/usr/bin/imageuploader
+Icon=imageuploader
 Terminal=false
 StartupNotify=false
 Categories=Application;System;

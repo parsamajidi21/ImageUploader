@@ -1,6 +1,6 @@
 #!/bin/sh
 
-VERSION=`cat ../main.h|grep USBIMAGER_VERSION|cut -d '"' -f 2`
+VERSION=`cat ../main.h|grep IMAGEUPLOADER_VERSION|cut -d '"' -f 2`
 COMMAVER=${VERSION//\./,}
 
 cat <<EOF >Info.plist
@@ -11,17 +11,17 @@ cat <<EOF >Info.plist
     <key>CFBundleDevelopmentRegion</key>
     <string>English</string>
     <key>CFBundleDisplayName</key>
-    <string>USBImager</string>
+    <string>ImageUploader</string>
     <key>CFBundleExecutable</key>
-    <string>usbimager</string>
+    <string>imageuploader</string>
     <key>CFBundleGetInfoString</key>
-    <string>$VERSION, Copyright 2020 bzt</string>
+    <string>$VERSION, Copyright 2026 Parsa Majidi, based on USBImager 2020 bzt</string>
     <key>CFBundleIconFile</key>
-    <string>usbimager.icns</string>
+    <string>imageuploader.icns</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>USBImager</string>
+    <string>ImageUploader</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
@@ -29,7 +29,7 @@ cat <<EOF >Info.plist
     <key>CFBundleVersion</key>
     <string>$VERSION</string>
     <key>NSHumanReadableCopyright</key>
-    <string>Copyright 2020 bzt</string>
+    <string>Copyright 2026 Parsa Majidi, based on USBImager 2020 bzt</string>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
     <key>CGDisableCoalescedUpdates</key>
@@ -49,7 +49,7 @@ cat <<EOF | sed 's/$/\r/g' >manifest.xml
   <assemblyIdentity
       version="$VERSION.0"
       processorArchitecture="*"
-      name="USBImager"
+      name="ImageUploader"
       type="win32"
   />
   <description>Write out an image file to an USB device.</description>
@@ -86,7 +86,7 @@ cat <<EOF | sed 's/$/\r/g' >resource.rc
 #include <commctrl.h>
 
 CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "manifest.xml"
-IDI_APP_ICON ICON "usbimager.ico"
+IDI_APP_ICON ICON "imageuploader.ico"
 IDI_WRITE    ICON "write.ico"
 IDI_READ     ICON "read.ico"
 
@@ -103,13 +103,13 @@ BEGIN
   BEGIN
     BLOCK "080904b0"
     BEGIN
-      VALUE "CompanyName", "bzt@gitlab"
-      VALUE "FileDescription", "USB image writer"
+      VALUE "CompanyName", "Parsa Majidi"
+      VALUE "FileDescription", "ImageUploader disk image writer"
       VALUE "FileVersion", "0.0.1"
       VALUE "InternalName", "Win32App"
-      VALUE "LegalCopyright", "©2020 bzt@gitlab"
-      VALUE "OriginalFilename", "usbimager.exe"
-      VALUE "ProductName", "USBImager by bzt"
+      VALUE "LegalCopyright", "©2026 Parsa Majidi, ©2020 bzt"
+      VALUE "OriginalFilename", "imageuploader.exe"
+      VALUE "ProductName", "ImageUploader"
       VALUE "ProductVersion", "$VERSION"
     END
   END
@@ -122,7 +122,7 @@ END
 IDC_MAINDLG DIALOGEX 0, 0, 320, 100
 STYLE DS_CENTER | DS_SHELLFONT | WS_SYSMENU
 FONT 8, "MS Shell Dlg"
-CAPTION "USBImager $VERSION"
+CAPTION "ImageUploader $VERSION"
 BEGIN
     EDITTEXT IDC_MAINDLG_SOURCE, 5, 5, 275, 12, ES_AUTOHSCROLL
     PUSHBUTTON "...", IDC_MAINDLG_SELECT, 285, 4, 30, 14
@@ -143,7 +143,7 @@ cat <<EOF | sed 's/$/\r/g' >resourcewo.rc
 #include <commctrl.h>
 
 CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "manifest.xml"
-IDI_APP_ICON ICON "usbimager.ico"
+IDI_APP_ICON ICON "imageuploader.ico"
 
 VS_VERSION_INFO    VERSIONINFO
 FILEVERSION        $COMMAVER,0
@@ -158,13 +158,13 @@ BEGIN
   BEGIN
     BLOCK "080904b0"
     BEGIN
-      VALUE "CompanyName", "bzt@gitlab"
-      VALUE "FileDescription", "USB image writer"
+      VALUE "CompanyName", "Parsa Majidi"
+      VALUE "FileDescription", "ImageUploader disk image writer"
       VALUE "FileVersion", "0.0.1"
       VALUE "InternalName", "Win32App"
-      VALUE "LegalCopyright", "©2020 bzt@gitlab"
-      VALUE "OriginalFilename", "usbimager.exe"
-      VALUE "ProductName", "USBImager by bzt"
+      VALUE "LegalCopyright", "©2026 Parsa Majidi, ©2020 bzt"
+      VALUE "OriginalFilename", "imageuploader.exe"
+      VALUE "ProductName", "ImageUploader"
       VALUE "ProductVersion", "$VERSION"
     END
   END
@@ -177,7 +177,7 @@ END
 IDC_MAINDLG DIALOGEX 0, 0, 320, 85
 STYLE DS_CENTER | DS_SHELLFONT | WS_SYSMENU
 FONT 8, "MS Shell Dlg"
-CAPTION "USBImager $VERSION"
+CAPTION "ImageUploader $VERSION"
 BEGIN
     EDITTEXT IDC_MAINDLG_SOURCE, 5, 5, 275, 12, ES_AUTOHSCROLL
     PUSHBUTTON "...", IDC_MAINDLG_SELECT, 285, 4, 30, 14
@@ -188,29 +188,29 @@ BEGIN
 END
 EOF
 
-cat <<EOF >usbimager.desktop
+cat <<EOF >imageuploader.desktop
 [Desktop Entry]
 Version=$VERSION
 Type=Application
-Name=USBImager
+Name=ImageUploader
 Comment=Write image files to USB devices
-Exec=/usr/bin/usbimager
-Icon=usbimager
+Exec=/usr/bin/imageuploader
+Icon=imageuploader
 Terminal=false
 StartupNotify=false
 Categories=Application;System;
 EOF
 
 cat <<EOF >deb_control
-Package: usbimager
+Package: imageuploader
 Version: $VERSION
 Architecture: ARCH
 Essential: no
 Section: Admin
 Priority: optional
 Depends: udisks2
-Maintainer: bzt
-Homepage: https://gitlab.com/bztsrc/usbimager
+Maintainer: Parsa Majidi
+Homepage: https://github.com/parsamajidi21/ImageUploader
 Installed-Size: SIZE
 Description: A very minimal GUI app to write compressed images to USB sticks and create backups
   Uncompresses gz, bzip2, xz and zip (zip64) images on-the-fly and writes them to USB devices.

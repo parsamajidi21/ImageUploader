@@ -311,7 +311,7 @@ static DWORD WINAPI readerRoutine(LPVOID lpParam) {
             wsprintfW(home, L".\\");
         GetDateFormatW(LOCALE_USER_DEFAULT, 0, NULL, L"yyyyMMdd", (LPWSTR)&d, 16);
         GetTimeFormatW(LOCALE_USER_DEFAULT, 0, NULL, L"HHmm", (LPWSTR)&t, 8);
-        wsprintfW(wFn, L"%s\\usbimager-%sT%s.dd%s", bkpdir && !_wstat(bkpdir, &st) ? bkpdir : home, d, t,
+        wsprintfW(wFn, L"%s\\imageuploader-%sT%s.dd%s", bkpdir && !_wstat(bkpdir, &st) ? bkpdir : home, d, t,
             needCompress ? L".zst" : L"");
         for(wlen = 0; wFn[wlen]; wlen++);
         len = WideCharToMultiByte(CP_UTF8, 0, wFn, wlen, 0, 0, NULL, NULL);
@@ -554,23 +554,23 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszArgum
                                 FILE *f = _fdopen(_open_osfhandle((intptr_t)ConsoleHandle, _O_TEXT), "w");
                                 *stdout = *f;
                                 setvbuf(stdout, NULL, _IONBF, 0);
-                                SetConsoleTitle(TEXT("USBImager Debug"));
+                                SetConsoleTitle(TEXT("ImageUploader Debug"));
                                 CONSOLE_SCREEN_BUFFER_INFO csbi;
                                 if(GetConsoleScreenBufferInfo(ConsoleHandle, &csbi)) {
                                     COORD bs;
                                     bs.X = 132; bs.Y = 32767;
                                     SetConsoleScreenBufferSize(ConsoleHandle, bs);
                                 }
-                                printf("USBImager " USBIMAGER_VERSION
+                                printf("ImageUploader " IMAGEUPLOADER_VERSION
 #if USE_WRONLY
                                     "_wo"
 #endif
-#ifdef USBIMAGER_BUILD
-                                    " (build " USBIMAGER_BUILD ")"
+#ifdef IMAGEUPLOADER_BUILD
+                                    " (build " IMAGEUPLOADER_BUILD ")"
 #endif
-                                    " - MIT license, Copyright (C) 2020 bzt\r\n\r\n"
-                                    "usbimager.exe [-v|-vv|-a|-f|-s[baud]|-S[baud]|-1|-2|-3|-4|-5|-6|-7|-8|-9|-L(xx)|-m(x)] <backup path>\r\n\r\n"
-                                    "https://gitlab.com/bztsrc/usbimager\r\n\r\n");
+                                    " - MIT license, Copyright (C) 2026 Parsa Majidi, based on USBImager (C) 2020 bzt\r\n\r\n"
+                                    "imageuploader.exe [-v|-vv|-a|-f|-s[baud]|-S[baud]|-1|-2|-3|-4|-5|-6|-7|-8|-9|-L(xx)|-m(x)] <backup path>\r\n\r\n"
+                                    "https://github.com/parsamajidi21/ImageUploader\r\n\r\n");
                             }
                         break;
                         case 's':

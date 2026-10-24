@@ -28,7 +28,7 @@
 
 ####### overall configuration #######
 
-TARGET = usbimager
+TARGET = imageuploader
 CC = gcc
 LD = gcc
 STRIP = strip
@@ -40,7 +40,7 @@ DECOMPRESSORS = zlib/libz.a bzip2/libbz2.a xz/libxz.a zstd/libzstd.a
 PREFIX ?= usr/
 INSTDIR=$(DESTDIR:/=)/$(PREFIX)
 
-VERSION = $(shell cat main.h|grep USBIMAGER_VERSION|cut -d '"' -f 2)
+VERSION = $(shell cat main.h|grep IMAGEUPLOADER_VERSION|cut -d '"' -f 2)
 SRC = $(filter-out $(wildcard main_*.c) $(wildcard disks_*.c),$(wildcard *.c))
 OBJ =
 
@@ -52,7 +52,7 @@ WIN = 1
 SRC += main_win.c disks_win.c
 CFLAGS += -DNDEBUG -DWINVER=0x0500 -DUNICODE=1
 LDFLAGS += -mwindows -static -static-libgcc
-TARGET = usbimager.exe
+TARGET = imageuploader.exe
 WINDRES = windres
 ifeq ($(ARCH),)
 ARCH=$(MSYSTEM_CARCH)
@@ -236,40 +236,40 @@ ifneq ($(GRP),)
 else
 	install -m 755 $(TARGET) $(INSTDIR)/bin
 endif
-	cp misc/usbimager.desktop $(INSTDIR)/share/applications
-	cp misc/usbimager.8.gz $(INSTDIR)/share/man/man8
-	cp misc/icon128.png $(INSTDIR)/share/icons/hicolor/128x128/apps/usbimager.png
-	cp misc/icon64.png $(INSTDIR)/share/icons/hicolor/64x64/apps/usbimager.png
-	cp misc/icon32.png $(INSTDIR)/share/icons/hicolor/32x32/apps/usbimager.png
-	cp misc/icon16.png $(INSTDIR)/share/icons/hicolor/16x16/apps/usbimager.png
+	cp misc/imageuploader.desktop $(INSTDIR)/share/applications
+	cp misc/imageuploader.8.gz $(INSTDIR)/share/man/man8
+	cp misc/icon128.png $(INSTDIR)/share/icons/hicolor/128x128/apps/imageuploader.png
+	cp misc/icon64.png $(INSTDIR)/share/icons/hicolor/64x64/apps/imageuploader.png
+	cp misc/icon32.png $(INSTDIR)/share/icons/hicolor/32x32/apps/imageuploader.png
+	cp misc/icon16.png $(INSTDIR)/share/icons/hicolor/16x16/apps/imageuploader.png
 
 package: $(TARGET)
 ifneq ($(WIN),)
-	@mkdir USBImager
-	@cp $(TARGET) USBImager
-	@rm ../usbimager_$(VERSION)$(WO)-$(ARCH)-$(FRM).zip 2>/dev/null || true
-	zip -r -9 ../usbimager_$(VERSION)$(WO)-$(ARCH)-$(FRM).zip USBImager
-	@rm -rf USBImager
+	@mkdir ImageUploader
+	@cp $(TARGET) ImageUploader
+	@rm ../imageuploader_$(VERSION)$(WO)-$(ARCH)-$(FRM).zip 2>/dev/null || true
+	zip -r -9 ../imageuploader_$(VERSION)$(WO)-$(ARCH)-$(FRM).zip ImageUploader
+	@rm -rf ImageUploader
 else
 ifneq ($(MACOSX),)
-	@mkdir USBImager.app USBImager.app/Contents USBImager.app/Contents/MacOS USBImager.app/Contents/Resources
-	@cp $(TARGET) USBImager.app/Contents/MacOS
-	@cp misc/Info.plist USBImager.app/Contents
-	@cp misc/usbimager.icns USBImager.app/Contents/Resources
-	@rm ../usbimager_$(VERSION)$(WO)-$(ARCH)-$(FRM).zip 2>/dev/null || true
-	zip -r -9 ../usbimager_$(VERSION)$(WO)-$(ARCH)-$(FRM).zip USBImager.app
-	@rm -rf USBImager.app
+	@mkdir ImageUploader.app ImageUploader.app/Contents ImageUploader.app/Contents/MacOS ImageUploader.app/Contents/Resources
+	@cp $(TARGET) ImageUploader.app/Contents/MacOS
+	@cp misc/Info.plist ImageUploader.app/Contents
+	@cp misc/imageuploader.icns ImageUploader.app/Contents/Resources
+	@rm ../imageuploader_$(VERSION)$(WO)-$(ARCH)-$(FRM).zip 2>/dev/null || true
+	zip -r -9 ../imageuploader_$(VERSION)$(WO)-$(ARCH)-$(FRM).zip ImageUploader.app
+	@rm -rf ImageUploader.app
 else
 	@mkdir bin share share/applications share/man share/man/man8 share/icons share/icons/hicolor share/icons/hicolor/16x16 share/icons/hicolor/16x16/apps share/icons/hicolor/32x32 share/icons/hicolor/32x32/apps share/icons/hicolor/64x64 share/icons/hicolor/64x64/apps share/icons/hicolor/128x128 share/icons/hicolor/128x128/apps
 	@cp $(TARGET) bin
-	@cp misc/usbimager.desktop share/applications
-	@cp misc/usbimager.8.gz share/man/man8
-	@cp misc/icon128.png share/icons/hicolor/128x128/apps/usbimager.png
-	@cp misc/icon64.png share/icons/hicolor/64x64/apps/usbimager.png
-	@cp misc/icon32.png share/icons/hicolor/32x32/apps/usbimager.png
-	@cp misc/icon16.png share/icons/hicolor/16x16/apps/usbimager.png
-	@rm ../usbimager_$(VERSION)$(WO)$(UF)-$(ARCH)-$(FRM).zip 2>/dev/null || true
-	zip -r -9 ../usbimager_$(VERSION)$(WO)$(UF)-$(ARCH)-$(FRM).zip bin share
+	@cp misc/imageuploader.desktop share/applications
+	@cp misc/imageuploader.8.gz share/man/man8
+	@cp misc/icon128.png share/icons/hicolor/128x128/apps/imageuploader.png
+	@cp misc/icon64.png share/icons/hicolor/64x64/apps/imageuploader.png
+	@cp misc/icon32.png share/icons/hicolor/32x32/apps/imageuploader.png
+	@cp misc/icon16.png share/icons/hicolor/16x16/apps/imageuploader.png
+	@rm ../imageuploader_$(VERSION)$(WO)$(UF)-$(ARCH)-$(FRM).zip 2>/dev/null || true
+	zip -r -9 ../imageuploader_$(VERSION)$(WO)$(UF)-$(ARCH)-$(FRM).zip bin share
 	@rm -rf bin share
 endif
 endif
@@ -277,12 +277,12 @@ endif
 deb: $(TARGET)
 	@mkdir DEBIAN usr usr/bin usr/share usr/share/applications usr/share/man usr/share/man/man8 usr/share/icons usr/share/icons/hicolor usr/share/icons/hicolor/16x16 usr/share/icons/hicolor/16x16/apps usr/share/icons/hicolor/32x32 usr/share/icons/hicolor/32x32/apps usr/share/icons/hicolor/64x64 usr/share/icons/hicolor/64x64/apps usr/share/icons/hicolor/128x128 usr/share/icons/hicolor/128x128/apps
 	@cp $(TARGET) usr/bin
-	@cp misc/usbimager.desktop usr/share/applications
-	@cp misc/usbimager.8.gz usr/share/man/man8
-	@cp misc/icon128.png usr/share/icons/hicolor/128x128/apps/usbimager.png
-	@cp misc/icon64.png usr/share/icons/hicolor/64x64/apps/usbimager.png
-	@cp misc/icon32.png usr/share/icons/hicolor/32x32/apps/usbimager.png
-	@cp misc/icon16.png usr/share/icons/hicolor/16x16/apps/usbimager.png
+	@cp misc/imageuploader.desktop usr/share/applications
+	@cp misc/imageuploader.8.gz usr/share/man/man8
+	@cp misc/icon128.png usr/share/icons/hicolor/128x128/apps/imageuploader.png
+	@cp misc/icon64.png usr/share/icons/hicolor/64x64/apps/imageuploader.png
+	@cp misc/icon32.png usr/share/icons/hicolor/32x32/apps/imageuploader.png
+	@cp misc/icon16.png usr/share/icons/hicolor/16x16/apps/imageuploader.png
 	@cat misc/deb_control | sed s/ARCH/$(DEBARCH)/g | sed s/SIZE/`du -s usr|cut -f 1`/g >DEBIAN/control
 	@md5sum `find usr -type f` >DEBIAN/md5sums
 	@cp ../LICENSE DEBIAN/copyright
@@ -295,7 +295,7 @@ ifeq ($(USE_LIBUI)$(USE_GTK),)
 else
 	@tar -C DEBIAN -czvf control.tar.gz control copyright md5sums
 endif
-	@ar r ../usbimager_$(VERSION)$(WO)-$(DEBARCH).deb debian-binary control.tar.gz data.tar.gz
+	@ar r ../imageuploader_$(VERSION)$(WO)-$(DEBARCH).deb debian-binary control.tar.gz data.tar.gz
 	@rm -rf debian-binary control.tar.gz data.tar.gz DEBIAN usr
 
 ####### cleanup #######

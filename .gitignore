@@ -5,7 +5,7 @@ src/zlib/configure.log
 src/zlib/Makefile
 src/zlib/zlib.pc
 
-src/usbimager
+src/imageuploader
 *.zip
 
 !src/libui/*.a

@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>USBImager</title>
-<meta name="description" content="USBImager is a really simple, tiny, open source application that writes compressed disk images to USB drives and creates backups. Windows, macOS and Linux.">
-<meta property="og:title" content="USBImager">
-<meta property="og:description" content="Write compressed disk images to USB drives. Tiny, open source, no dependencies.">
+<title>ImageUploader</title>
+<meta name="description" content="ImageUploader is a small, open source application that writes compressed disk images to USB drives and SD cards, and creates backups. Linux, Windows and macOS.">
+<meta property="og:title" content="ImageUploader">
+<meta property="og:description" content="Flash disk images to USB drives and SD cards. Small, open source, no dependencies.">
 <meta property="og:image" content="assets/screenshot-light.png">
 <link rel="icon" type="image/png" href="assets/favicon.png">
 <style>
@@ -125,30 +125,14 @@ h2 { font-size: clamp(1.6rem, 3vw, 2.1rem); letter-spacing: -0.02em; margin: 0 0
 }
 .ico svg { width: 22px; height: 22px; }
 
-/* before / after */
-.compare { display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 24px; align-items: end; }
+/* screenshots */
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: end; }
 @media (max-width: 760px) { .compare { grid-template-columns: 1fr; } }
 .compare figure { margin: 0; }
 .compare figcaption { margin-top: 10px; font-size: 0.9rem; color: var(--muted); text-align: center; }
 .changes { columns: 2 260px; column-gap: 32px; padding-left: 20px; margin: 32px 0 0; color: var(--muted); }
 .changes li { margin-bottom: 6px; break-inside: avoid; }
 .changes b { color: var(--text); font-weight: 600; }
-
-/* downloads */
-.table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
-table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
-th, td { text-align: left; padding: 14px 18px; border-bottom: 1px solid var(--border); vertical-align: top; }
-tr:last-child td { border-bottom: 0; }
-th { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); background: var(--bg-alt); }
-td:first-child { font-weight: 600; white-space: nowrap; }
-td .links { display: flex; flex-wrap: wrap; gap: 6px; }
-td .links a {
-  font-size: 0.85rem; padding: 3px 10px; border-radius: 999px;
-  border: 1px solid var(--border); color: var(--text); white-space: nowrap;
-}
-td .links a:hover { border-color: var(--accent); color: var(--accent-strong); text-decoration: none; }
-td .links a.rec { background: var(--accent-soft); border-color: transparent; color: var(--accent-strong); font-weight: 600; }
-.note { font-size: 0.88rem; color: var(--muted); margin-top: 14px; }
 
 /* steps */
 .steps { counter-reset: step; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
@@ -185,13 +169,12 @@ footer p { margin: 0; }
 
 <nav>
   <div class="wrap">
-    <a class="brand" href="#"><img src="assets/icon.png" alt="">USBImager</a>
+    <a class="brand" href="#"><img src="assets/icon.png" alt="">ImageUploader</a>
     <ul>
       <li class="opt"><a href="#features">Features</a></li>
-      <li class="opt"><a href="#new-ui">New UI</a></li>
-      <li><a href="#download">Download</a></li>
-      <li class="opt"><a href="#build">Build</a></li>
-      <li><a href="https://gitlab.com/bztsrc/usbimager">Source</a></li>
+      <li class="opt"><a href="#interface">Interface</a></li>
+      <li><a href="#get">Get it</a></li>
+      <li><a href="https://github.com/parsamajidi21/ImageUploader">GitHub</a></li>
     </ul>
   </div>
 </nav>
@@ -199,22 +182,25 @@ footer p { margin: 0; }
 <header class="hero">
   <div class="wrap">
     <div>
-      <span class="eyebrow">v1.0.10 · MIT licensed · Open source</span>
+      <span class="eyebrow">v1.0.0 · MIT licensed · Open source</span>
       <h1>Flash disk images to USB, <span>without the bloat.</span></h1>
-      <p class="lead">USBImager writes compressed disk images to USB drives and SD cards, and creates backups. It's under 200 KB, has no dependencies, and runs on Windows, macOS and Linux.</p>
+      <p class="lead">ImageUploader writes compressed disk images to USB drives and SD cards, and creates backups. It's small, has no dependencies, and runs on Linux, Windows and macOS.</p>
       <div class="cta">
-        <a class="btn primary" id="dl-main" href="#download">
+        <a class="btn primary" href="#get">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
-          <span id="dl-label">Download</span>
+          Get ImageUploader
         </a>
-        <a class="btn" href="#new-ui">See the new interface</a>
+        <a class="btn" href="https://github.com/parsamajidi21/ImageUploader">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.2c-3.3.7-4-1.4-4-1.4-.6-1.4-1.4-1.8-1.4-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.7 1.7.3 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5z"/></svg>
+          View on GitHub
+        </a>
       </div>
-      <p class="meta" id="dl-meta">Free, no account, no telemetry, no ads.</p>
+      <p class="meta">Free, no account, no telemetry, no ads.</p>
     </div>
     <div class="shot">
       <picture>
         <source srcset="assets/screenshot-dark.png" media="(prefers-color-scheme: dark)">
-        <img src="assets/screenshot-light.png" width="530" height="350" alt="USBImager's modern GTK window: an image file field, a target device selector, Verify and Compress options, and red Write and grey Read buttons">
+        <img src="assets/screenshot-light.png" width="530" height="350" alt="ImageUploader's GTK window: an image file field, a target device selector, Verify and Compress options, and red Write and grey Read buttons">
       </picture>
     </div>
   </div>
@@ -257,8 +243,8 @@ footer p { margin: 0; }
       </div>
       <div class="card">
         <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
-        <h3>Tiny and portable</h3>
-        <p>Each download is under 192 KB. No installer, no DLLs: every parser and decompressor is built in.</p>
+        <h3>Small and self-contained</h3>
+        <p>No runtime to install and no extra libraries: every parser and decompressor is built in.</p>
       </div>
       <div class="card">
         <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><path d="M3 3l18 18"/></svg></div>
@@ -269,99 +255,61 @@ footer p { margin: 0; }
   </div>
 </section>
 
-<section id="new-ui">
+<section id="interface">
   <div class="wrap">
-    <h2>A modern GTK interface</h2>
-    <p class="sub">The GTK frontend has been redesigned in this fork: a header bar, clear grouping, icons, and a Write button that looks as serious as what it does. It follows your system theme, dark mode included.</p>
-    <div class="compare">
+    <h2>A clean, modern interface</h2>
+    <p class="sub">Everything on one screen: the image, the drive, and a Write button that looks as serious as what it does. It follows your system theme, dark mode included.</p>
+    <div class="compare even">
       <figure>
-        <div class="shot"><img src="assets/screenshot-before.png" width="480" height="196" alt="The previous GTK interface: plain default widgets stacked vertically with a '...' browse button and text arrows on the buttons"></div>
-        <figcaption>Before</figcaption>
+        <div class="shot"><img src="assets/screenshot-light.png" width="530" height="350" alt="ImageUploader with a light theme"></div>
+        <figcaption>Light theme</figcaption>
       </figure>
       <figure>
-        <div class="shot"><img src="assets/screenshot-dark.png" width="530" height="350" alt="The new GTK interface in dark mode"></div>
-        <figcaption>After, shown with a dark theme</figcaption>
+        <div class="shot"><img src="assets/screenshot-dark.png" width="530" height="350" alt="ImageUploader with a dark theme"></div>
+        <figcaption>Dark theme</figcaption>
       </figure>
     </div>
     <ul class="changes">
-      <li><b>Header bar</b> with version and an About dialog</li>
-      <li><b>Card layout</b> grouping the image and target device</li>
-      <li><b>Write as a destructive action</b>, so it's obvious it erases the drive</li>
       <li><b>Drag and drop</b> an image file anywhere on the window</li>
-      <li><b>Refresh button</b> for the device list</li>
-      <li><b>File chooser filter</b> for every supported image and archive format</li>
-      <li><b>Theme-aware styling</b> that works with light and dark themes</li>
-      <li><b>Fixed:</b> the buffer size selector didn't apply the chosen size</li>
-      <li><b>Builds without udisks2</b>, falling back to the <code>disk</code> group</li>
-      <li><b>No new strings</b>: all 18 translations keep working</li>
+      <li><b>Refresh button</b> to pick up a drive you just plugged in</li>
+      <li><b>Write is clearly marked</b> as the action that erases the drive</li>
+      <li><b>Smart file filter</b> for every supported image and archive format</li>
+      <li><b>Live progress</b> with an estimate of the time left</li>
+      <li><b>Speaks your language:</b> 18 translations, detected automatically</li>
     </ul>
   </div>
 </section>
 
-<section id="download" class="alt">
+<section id="get" class="alt">
   <div class="wrap">
-    <h2>Download</h2>
-    <p class="sub">Official v1.0.10 binaries from the upstream project. Just extract and run, no installation needed. <b>wo</b> builds have a simplified, write-only interface; <b>uf</b> builds embed the Unifont font for X11 systems without Unicode fonts.</p>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Platform</th><th>Downloads</th><th>Notes</th></tr></thead>
-        <tbody>
-          <tr data-os="windows">
-            <td>Windows</td>
-            <td><div class="links">
-              <a class="rec" href="https://gitlab.com/bztsrc/usbimager/raw/binaries/usbimager_1.0.10-i686-win-gdi.zip">GDI</a>
-              <a href="https://gitlab.com/bztsrc/usbimager/raw/binaries/usbimager_1.0.10_wo-i686-win-gdi.zip">GDI wo</a>
-            </div></td>
-            <td>Native interface</td>
-          </tr>
-          <tr data-os="mac">
-            <td>macOS</td>
-            <td><div class="links">
-              <a class="rec" href="https://github.com/glowinthedark/usbimager/releases/download/1.0.10/usbimager_1.0.10-arm-macosx-cocoa.zip">Cocoa ARM</a>
-              <a href="https://github.com/glowinthedark/usbimager/releases/download/1.0.10/usbimager_1.0.10-intel-macosx-cocoa.zip">Cocoa Intel</a>
-            </div></td>
-            <td>ARM for Apple silicon, Intel for older Macs</td>
-          </tr>
-          <tr data-os="linux">
-            <td>Ubuntu / Debian</td>
-            <td><div class="links">
-              <a class="rec" href="https://gitlab.com/bztsrc/usbimager/raw/binaries/usbimager_1.0.10-amd64.deb">GTK .deb</a>
-              <a href="https://gitlab.com/bztsrc/usbimager/raw/binaries/usbimager_1.0.10_wo-amd64.deb">GTK wo .deb</a>
-            </div></td>
-            <td>With udisks2 support. Install with <code>sudo dpkg -i usbimager_*.deb</code></td>
-          </tr>
-          <tr>
-            <td>Raspberry Pi OS</td>
-            <td><div class="links">
-              <a href="https://gitlab.com/bztsrc/usbimager/raw/binaries/usbimager_1.0.10-armhf.deb">GTK .deb</a>
-              <a href="https://gitlab.com/bztsrc/usbimager/raw/binaries/usbimager_1.0.10_wo-armhf.deb">GTK wo .deb</a>
-              <a href="https://gitlab.com/bztsrc/usbimager/raw/binaries/usbimager_1.0.10-armv7l-linux-x11.zip">X11</a>
-            </div></td>
-            <td>armhf / armv7l</td>
-          </tr>
-          <tr>
-            <td>Arch / Manjaro</td>
-            <td><div class="links">
-              <a href="https://aur.archlinux.org/packages/usbimager/">AUR GTK</a>
-              <a href="https://aur.archlinux.org/packages/usbimager-bin/">AUR bin</a>
-              <a href="https://aur.archlinux.org/packages/usbimager-x11/">AUR X11</a>
-            </div></td>
-            <td>Community packages</td>
-          </tr>
-          <tr>
-            <td>Linux (any)</td>
-            <td><div class="links">
-              <a href="https://gitlab.com/bztsrc/usbimager/raw/binaries/usbimager_1.0.10-x86_64-linux-x11.zip">X11</a>
-              <a href="https://gitlab.com/bztsrc/usbimager/raw/binaries/usbimager_1.0.10_uf-x86_64-linux-x11.zip">X11 uf</a>
-              <a href="https://gitlab.com/bztsrc/usbimager/raw/binaries/usbimager_1.0.10_wo-x86_64-linux-x11.zip">X11 wo</a>
-              <a href="https://gitlab.com/bztsrc/usbimager/raw/binaries/usbimager_1.0.10-x86_64-linux-gtk.zip">GTK</a>
-            </div></td>
-            <td>x86_64 portable zip. The GTK build needs udisks2</td>
-          </tr>
-        </tbody>
-      </table>
+    <h2>Get ImageUploader</h2>
+    <p class="sub">Build it from source in under a minute. Pre-built packages will be published on the <a href="https://github.com/parsamajidi21/ImageUploader/releases">Releases page</a>.</p>
+    <div class="two">
+      <div>
+        <h3>Linux (GTK, recommended)</h3>
+<pre><span class="c"># Debian / Ubuntu dependencies</span>
+sudo apt install build-essential libgtk-3-dev
+<span class="c"># optional, lets non-root users write via udisks2</span>
+sudo apt install libudisks2-dev
+
+git clone https://github.com/parsamajidi21/ImageUploader.git
+cd ImageUploader/src
+USE_GTK=1 make
+./imageuploader</pre>
+      </div>
+      <div>
+        <h3>Other interfaces and packages</h3>
+<pre><span class="c"># default: X11 on Linux, GDI on Windows, Cocoa on macOS</span>
+make
+
+USE_TUI=1 make      <span class="c"># text interface</span>
+USE_WRONLY=1 make   <span class="c"># write-only</span>
+
+make install        <span class="c"># install under /usr</span>
+make deb            <span class="c"># build a .deb package</span>
+make help           <span class="c"># list every option</span></pre>
+      </div>
     </div>
-    <p class="note">The modern GTK interface shown above isn't in these binaries yet. To try it, <a href="#build">build from source</a>.</p>
 
     <h2 style="margin-top:56px">Three steps</h2>
     <p class="sub">That's the whole manual.</p>
@@ -390,73 +338,13 @@ footer p { margin: 0; }
   </div>
 </section>
 
-<section id="build" class="alt">
-  <div class="wrap">
-    <h2>Build from source</h2>
-    <p class="sub">Needs a C compiler and make. The GTK frontend also needs the GTK 3 development headers; udisks2 is optional.</p>
-    <div class="two">
-      <div>
-        <h3>Modern GTK interface (Linux)</h3>
-<pre><span class="c"># Debian / Ubuntu dependencies</span>
-sudo apt install build-essential libgtk-3-dev
-<span class="c"># optional, lets non-root users write via udisks2</span>
-sudo apt install libudisks2-dev
-
-git clone <span id="fork-url">https://gitlab.com/bztsrc/usbimager.git</span>
-cd usbimager/src
-USE_GTK=1 make
-./usbimager</pre>
-      </div>
-      <div>
-        <h3>Other frontends</h3>
-<pre><span class="c"># default: X11 on Linux, GDI on Windows, Cocoa on macOS</span>
-make
-
-<span class="c"># other interfaces and options</span>
-USE_TUI=1 make      <span class="c"># text interface</span>
-USE_WRONLY=1 make   <span class="c"># write-only</span>
-USE_UNIFONT=1 make  <span class="c"># X11 with embedded font</span>
-
-make deb            <span class="c"># build a .deb package</span>
-make help           <span class="c"># list every option</span></pre>
-      </div>
-    </div>
-  </div>
-</section>
 
 <footer>
   <div class="wrap">
-    <p>USBImager is created by <a href="https://gitlab.com/bztsrc">bzt</a> and released under the MIT license.<br>
-      Official project: <a href="https://gitlab.com/bztsrc/usbimager">gitlab.com/bztsrc/usbimager</a> · <a href="https://bztsrc.gitlab.io/usbimager">bztsrc.gitlab.io/usbimager</a></p>
-    <p>This page showcases a fork with a modernized GTK interface.<br><a id="fork-link" href="https://gitlab.com/bztsrc/usbimager">View this fork's source</a></p>
+    <p>© 2026 Parsa Majidi · ImageUploader is released under the MIT license.</p>
+    <p>Based on <a href="https://gitlab.com/bztsrc/usbimager">USBImager</a> by bzt · <a href="https://github.com/parsamajidi21/ImageUploader">Source on GitHub</a></p>
   </div>
 </footer>
 
-<script>
-(function () {
-  // On <user>.github.io/<repo>/, point the fork links at github.com/<user>/<repo>
-  var host = location.hostname, m = host.match(/^([^.]+)\.github\.io$/);
-  if (m) {
-    var repo = location.pathname.split('/').filter(Boolean)[0] || host;
-    var url = 'https://github.com/' + m[1] + '/' + repo;
-    document.getElementById('fork-link').href = url;
-    document.getElementById('fork-url').textContent = url + '.git';
-  }
-
-  // Point the main download button at the build for the visitor's OS
-  var ua = navigator.userAgent, os = null, label = null;
-  if (/Windows/i.test(ua)) { os = 'windows'; label = 'Download for Windows'; }
-  else if (/Mac OS X|Macintosh/i.test(ua)) { os = 'mac'; label = 'Download for macOS'; }
-  else if (/Linux|X11/i.test(ua) && !/Android/i.test(ua)) { os = 'linux'; label = 'Download for Linux'; }
-  if (os) {
-    var rec = document.querySelector('tr[data-os="' + os + '"] a.rec');
-    if (rec) {
-      document.getElementById('dl-main').href = rec.href;
-      document.getElementById('dl-label').textContent = label;
-      document.getElementById('dl-meta').textContent = rec.textContent + ' · v1.0.10 · Free, no account, no telemetry, no ads.';
-    }
-  }
-})();
-</script>
 </body>
 </html>

@@ -1,4 +1,4 @@
 #!/bin/sh
 
-chgrp disk /usr/bin/usbimager
-chmod g+s /usr/bin/usbimager
+chgrp disk /usr/bin/imageuploader
+chmod g+s /usr/bin/imageuploader

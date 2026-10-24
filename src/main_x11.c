@@ -894,7 +894,7 @@ static void *readerRoutine(void)
         }
         i = strlen(fn);
         lt = localtime(&now);
-        snprintf(fn + i, sizeof(fn)-1-i, "/usbimager-%04d%02d%02dT%02d%02d.dd%s",
+        snprintf(fn + i, sizeof(fn)-1-i, "/imageuploader-%04d%02d%02dT%02d%02d.dd%s",
             lt->tm_year+1900, lt->tm_mon+1, lt->tm_mday, lt->tm_hour, lt->tm_min,
             needCompress ? ".zst" : "");
         strcpy(source, fn);
@@ -1527,12 +1527,12 @@ int main(int argc, char **argv)
     KeySym k;
     XTextProperty title_property;
     Atom a, t, *sa = NULL;
-    char colorName[16], *title = "USBImager " USBIMAGER_VERSION;
+    char colorName[16], *title = "ImageUploader " IMAGEUPLOADER_VERSION;
     int i, j, ser;
     long *extents = NULL;
     unsigned long n, b;
     char *lc = getenv("LANG"), *sd = getenv("XDG_SESSION_DESKTOP");
-    char help[] = "USBImager " USBIMAGER_VERSION
+    char help[] = "ImageUploader " IMAGEUPLOADER_VERSION
 #if USE_WRONLY
         "_wo"
 #endif
@@ -1542,21 +1542,21 @@ int main(int argc, char **argv)
 #if USE_UDISKS2
         "_udisks2"
 #endif
-#ifdef USBIMAGER_BUILD
-        " (build " USBIMAGER_BUILD ")"
+#ifdef IMAGEUPLOADER_BUILD
+        " (build " IMAGEUPLOADER_BUILD ")"
 #endif
-        " - MIT license, Copyright (C) 2020 bzt\r\n\r\n"
-        "./usbimager [-v|-vv|-a|-f|-s[baud]|-S[baud]|-1|-2|-3|-4|-5|-6|-7|-8|-9|-L(xx)|-m(x)"
+        " - MIT license, Copyright (C) 2026 Parsa Majidi, based on USBImager (C) 2020 bzt\r\n\r\n"
+        "./imageuploader [-v|-vv|-a|-f|-s[baud]|-S[baud]|-1|-2|-3|-4|-5|-6|-7|-8|-9|-L(xx)|-m(x)"
 #ifndef USE_UNIFONT
         "|-F(x)"
 #endif
         "] <backup path>\r\n\r\n"
-        "https://gitlab.com/bztsrc/usbimager\r\n\r\n";
+        "https://github.com/parsamajidi21/ImageUploader\r\n\r\n";
 
     for(j = 1; j < argc && argv[j]; j++) {
         if(argv[j][0] == '-') {
             if(!strcmp(argv[j], "--version")) {
-                printf(USBIMAGER_VERSION "\n");
+                printf(IMAGEUPLOADER_VERSION "\n");
                 exit(0);
             }
             if(!strcmp(argv[j], "--help")) {

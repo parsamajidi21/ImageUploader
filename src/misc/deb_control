@@ -1,12 +1,12 @@
-Package: usbimager
-Version: 1.0.10
+Package: imageuploader
+Version: 1.0.0
 Architecture: ARCH
 Essential: no
 Section: Admin
 Priority: optional
 Depends: udisks2
-Maintainer: bzt
-Homepage: https://gitlab.com/bztsrc/usbimager
+Maintainer: Parsa Majidi
+Homepage: https://github.com/parsamajidi21/ImageUploader
 Installed-Size: SIZE
 Description: A very minimal GUI app to write compressed images to USB sticks and create backups
   Uncompresses gz, bzip2, xz and zip (zip64) images on-the-fly and writes them to USB devices.
