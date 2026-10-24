@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>USBImager</title>
+<meta name="description" content="USBImager is a really simple, tiny, open source application that writes compressed disk images to USB drives and creates backups. Windows, macOS and Linux.">
+<meta property="og:title" content="USBImager">
+<meta property="og:description" content="Write compressed disk images to USB drives. Tiny, open source, no dependencies.">
+<meta property="og:image" content="assets/screenshot-light.png">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<style>
+:root {
+  --bg: #fbfaf7;
+  --bg-alt: #f3f1ec;
+  --surface: #ffffff;
+  --text: #1d1d1f;
+  --muted: #5d5d66;
+  --border: rgba(0, 0, 0, 0.09);
+  --accent: #d97706;
+  --accent-strong: #b45309;
+  --accent-soft: rgba(217, 119, 6, 0.1);
+  --danger: #dc2626;
+  --code-bg: #1f1f24;
+  --code-text: #ececf1;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 12px 32px rgba(0, 0, 0, 0.08);
+  --radius: 14px;
+  --maxw: 1080px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #131316;
+    --bg-alt: #1a1a1e;
+    --surface: #202025;
+    --text: #ececf1;
+    --muted: #a1a1aa;
+    --border: rgba(255, 255, 255, 0.09);
+    --accent: #f59e0b;
+    --accent-strong: #fbbf24;
+    --accent-soft: rgba(245, 158, 11, 0.12);
+    --code-bg: #0c0c0e;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.35);
+  }
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent-strong); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.9em; }
+:not(pre) > code { background: var(--accent-soft); padding: 0.1em 0.4em; border-radius: 5px; }
+img { max-width: 100%; height: auto; }
+.wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 16px; }
+
+/* nav */
+nav {
+  position: sticky; top: 0; z-index: 10;
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
+  backdrop-filter: saturate(1.4) blur(10px);
+  -webkit-backdrop-filter: saturate(1.4) blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+nav .wrap { display: flex; align-items: center; gap: 24px; height: 56px; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; color: var(--text); }
+.brand:hover { text-decoration: none; }
+.brand img { width: 26px; height: 26px; }
+nav ul { display: flex; gap: 20px; list-style: none; margin: 0 0 0 auto; padding: 0; }
+nav ul a { color: var(--muted); font-size: 0.95rem; }
+nav ul a:hover { color: var(--text); text-decoration: none; }
+@media (max-width: 640px) { nav ul li.opt { display: none; } }
+
+/* hero */
+.hero { padding: 72px 0 56px; }
+.hero .wrap { display: grid; grid-template-columns: 1fr 1.1fr; gap: 48px; align-items: center; }
+@media (max-width: 860px) { .hero .wrap { grid-template-columns: 1fr; } .hero { padding-top: 40px; } }
+.eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 0.85rem; font-weight: 600; color: var(--accent-strong);
+  background: var(--accent-soft); padding: 4px 12px; border-radius: 999px;
+}
+h1 { font-size: clamp(2.3rem, 5vw, 3.4rem); line-height: 1.08; letter-spacing: -0.03em; margin: 18px 0 16px; }
+h1 span { color: var(--accent); }
+.lead { font-size: 1.15rem; color: var(--muted); margin: 0 0 28px; max-width: 34em; }
+.cta { display: flex; flex-wrap: wrap; gap: 12px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 12px 22px; border-radius: 10px; font-weight: 600;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.btn:hover { text-decoration: none; transform: translateY(-1px); box-shadow: var(--shadow); }
+.btn.primary { background: var(--accent); border-color: transparent; color: #fff; }
+.btn.primary:hover { background: var(--accent-strong); }
+.btn svg { width: 18px; height: 18px; }
+.meta { margin-top: 18px; font-size: 0.88rem; color: var(--muted); }
+.shot {
+  border-radius: var(--radius); box-shadow: var(--shadow);
+  border: 1px solid var(--border); overflow: hidden; background: var(--surface);
+  line-height: 0;
+}
+
+/* sections */
+section { padding: 64px 0; }
+section.alt { background: var(--bg-alt); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+h2 { font-size: clamp(1.6rem, 3vw, 2.1rem); letter-spacing: -0.02em; margin: 0 0 8px; }
+.sub { color: var(--muted); margin: 0 0 36px; max-width: 42em; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px; }
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 22px;
+}
+.card h3 { margin: 12px 0 6px; font-size: 1.05rem; }
+.card p { margin: 0; color: var(--muted); font-size: 0.95rem; }
+.ico {
+  width: 40px; height: 40px; border-radius: 10px;
+  display: grid; place-items: center;
+  background: var(--accent-soft); color: var(--accent-strong);
+}
+.ico svg { width: 22px; height: 22px; }
+
+/* before / after */
+.compare { display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 24px; align-items: end; }
+@media (max-width: 760px) { .compare { grid-template-columns: 1fr; } }
+.compare figure { margin: 0; }
+.compare figcaption { margin-top: 10px; font-size: 0.9rem; color: var(--muted); text-align: center; }
+.changes { columns: 2 260px; column-gap: 32px; padding-left: 20px; margin: 32px 0 0; color: var(--muted); }
+.changes li { margin-bottom: 6px; break-inside: avoid; }
+.changes b { color: var(--text); font-weight: 600; }
+
+/* downloads */
+.table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+th, td { text-align: left; padding: 14px 18px; border-bottom: 1px solid var(--border); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+th { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); background: var(--bg-alt); }
+td:first-child { font-weight: 600; white-space: nowrap; }
+td .links { display: flex; flex-wrap: wrap; gap: 6px; }
+td .links a {
+  font-size: 0.85rem; padding: 3px 10px; border-radius: 999px;
+  border: 1px solid var(--border); color: var(--text); white-space: nowrap;
+}
+td .links a:hover { border-color: var(--accent); color: var(--accent-strong); text-decoration: none; }
+td .links a.rec { background: var(--accent-soft); border-color: transparent; color: var(--accent-strong); font-weight: 600; }
+.note { font-size: 0.88rem; color: var(--muted); margin-top: 14px; }
+
+/* steps */
+.steps { counter-reset: step; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+.steps .card { position: relative; padding-top: 56px; }
+.steps .card::before {
+  counter-increment: step; content: counter(step);
+  position: absolute; top: 20px; left: 22px;
+  width: 26px; height: 26px; border-radius: 50%;
+  background: var(--accent); color: #fff; font-weight: 700; font-size: 0.85rem;
+  display: grid; place-items: center;
+}
+
+/* why not dd */
+.why { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px 32px; padding: 0; list-style: none; margin: 0; }
+.why li { position: relative; padding-left: 24px; color: var(--muted); }
+.why li::before { content: "✓"; position: absolute; left: 0; color: var(--accent); font-weight: 700; }
+
+/* code */
+pre {
+  background: var(--code-bg); color: var(--code-text);
+  padding: 18px 20px; border-radius: 12px; overflow-x: auto; line-height: 1.55; margin: 0 0 16px;
+}
+pre .c { color: #8b8b96; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+@media (max-width: 760px) { .two { grid-template-columns: 1fr; } }
+.two h3 { margin: 0 0 10px; font-size: 1.05rem; }
+
+footer { padding: 40px 0 56px; color: var(--muted); font-size: 0.9rem; border-top: 1px solid var(--border); }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 16px 32px; justify-content: space-between; }
+footer p { margin: 0; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="#"><img src="assets/icon.png" alt="">USBImager</a>
+    <ul>
+      <li class="opt"><a href="#features">Features</a></li>
+      <li class="opt"><a href="#new-ui">New UI</a></li>
+      <li><a href="#download">Download</a></li>
+      <li class="opt"><a href="#build">Build</a></li>
+      <li><a href="https://gitlab.com/bztsrc/usbimager">Source</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div>
+      <span class="eyebrow">v1.0.10 · MIT licensed · Open source</span>
+      <h1>Flash disk images to USB, <span>without the bloat.</span></h1>
+      <p class="lead">USBImager writes compressed disk images to USB drives and SD cards, and creates backups. It's under 200 KB, has no dependencies, and runs on Windows, macOS and Linux.</p>
+      <div class="cta">
+        <a class="btn primary" id="dl-main" href="#download">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+          <span id="dl-label">Download</span>
+        </a>
+        <a class="btn" href="#new-ui">See the new interface</a>
+      </div>
+      <p class="meta" id="dl-meta">Free, no account, no telemetry, no ads.</p>
+    </div>
+    <div class="shot">
+      <picture>
+        <source srcset="assets/screenshot-dark.png" media="(prefers-color-scheme: dark)">
+        <img src="assets/screenshot-light.png" width="530" height="350" alt="USBImager's modern GTK window: an image file field, a target device selector, Verify and Compress options, and red Write and grey Read buttons">
+      </picture>
+    </div>
+  </div>
+</header>
+
+<section id="features" class="alt">
+  <div class="wrap">
+    <h2>Simple on purpose</h2>
+    <p class="sub">Pick an image, pick a drive, press Write. Everything else is handled for you.</p>
+    <div class="grid">
+      <div class="card">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg></div>
+        <h3>Reads compressed images on the fly</h3>
+        <p>.gz, .bz2, .xz and .zst images, plus .zip (incl. ZIP64), .zzz, .tar, .cpio and .pax archives. No need to extract first.</p>
+      </div>
+      <div class="card">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg></div>
+        <h3>Hard to make a mistake</h3>
+        <p>It tries to be bullet-proof: your system disk is kept out of the target list, so you won't overwrite your OS by accident.</p>
+      </div>
+      <div class="card">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
+        <h3>Verified, synchronized writes</h3>
+        <p>Compares the disk to the image as it writes. All data is physically on the drive when the progress bar hits 100%.</p>
+      </div>
+      <div class="card">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg></div>
+        <h3>Backups too</h3>
+        <p>Read a drive back to a raw image or a ZStandard-compressed one with a single click.</p>
+      </div>
+      <div class="card">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6H9z"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"/></svg></div>
+        <h3>Serial line to microcontrollers</h3>
+        <p>Send images straight to embedded boards over a serial port, with a configurable baud rate.</p>
+      </div>
+      <div class="card">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20z"/></svg></div>
+        <h3>18 languages, native everywhere</h3>
+        <p>GDI on Windows, Cocoa on macOS, GTK or X11 on Linux. It picks up your system language on its own.</p>
+      </div>
+      <div class="card">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
+        <h3>Tiny and portable</h3>
+        <p>Each download is under 192 KB. No installer, no DLLs: every parser and decompressor is built in.</p>
+      </div>
+      <div class="card">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><path d="M3 3l18 18"/></svg></div>
+        <h3>Private by design</h3>
+        <p>No telemetry, no tracking, no ads, no accounts. Fully GDPR compatible.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="new-ui">
+  <div class="wrap">
+    <h2>A modern GTK interface</h2>
+    <p class="sub">The GTK frontend has been redesigned in this fork: a header bar, clear grouping, icons, and a Write button that looks as serious as what it does. It follows your system theme, dark mode included.</p>
+    <div class="compare">
+      <figure>
+        <div class="shot"><img src="assets/screenshot-before.png" width="480" height="196" alt="The previous GTK interface: plain default widgets stacked vertically with a '...' browse button and text arrows on the buttons"></div>
+        <figcaption>Before</figcaption>
+      </figure>
+      <figure>
+        <div class="shot"><img src="assets/screenshot-dark.png" width="530" height="350" alt="The new GTK interface in dark mode"></div>
+        <figcaption>After, shown with a dark theme</figcaption>
+      </figure>
+    </div>
+    <ul class="changes">
+      <li><b>Header bar</b> with version and an About dialog</li>
+      <li><b>Card layout</b> grouping the image and target device</li>
+      <li><b>Write as a destructive action</b>, so it's obvious it erases the drive</li>
+      <li><b>Drag and drop</b> an image file anywhere on the window</li>
+      <li><b>Refresh button</b> for the device list</li>
+      <li><b>File chooser filter</b> for every supported image and archive format</li>
+      <li><b>Theme-aware styling</b> that works with light and dark themes</li>
+      <li><b>Fixed:</b> the buffer size selector didn't apply the chosen size</li>
+      <li><b>Builds without udisks2</b>, falling back to the <code>disk</code> group</li>
+      <li><b>No new strings</b>: all 18 translations keep working</li>
+    </ul>
+  </div>
+</section>
+
+<section id="download" class="alt">
+  <div class="wrap">
+    <h2>Download</h2>
+    <p class="sub">Official v1.0.10 binaries from the upstream project. Just extract and run, no installation needed. <b>wo</b> builds have a simplified, write-only interface; <b>uf</b> builds embed the Unifont font for X11 systems without Unicode fonts.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Platform</th><th>Downloads</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr data-os="windows">
+            <td>Windows</td>
+            <td><div class="links">
+              <a class="rec" href="https://gitlab.com/bztsrc/usbimager/raw/binaries/usbimager_1.0.10-i686-win-gdi.zip">GDI</a>
+              <a href="https://gitlab.com/bztsrc/usbimager/raw/binaries/usbimager_1.0.10_wo-i686-win-gdi.zip">GDI wo</a>
+            </div></td>
+            <td>Native interface</td>
+          </tr>
+          <tr data-os="mac">
+            <td>macOS</td>
+            <td><div class="links">
+              <a class="rec" href="https://github.com/glowinthedark/usbimager/releases/download/1.0.10/usbimager_1.0.10-arm-macosx-cocoa.zip">Cocoa ARM</a>
+              <a href="https://github.com/glowinthedark/usbimager/releases/download/1.0.10/usbimager_1.0.10-intel-macosx-cocoa.zip">Cocoa Intel</a>
+            </div></td>
+            <td>ARM for Apple silicon, Intel for older Macs</td>
+          </tr>
+          <tr data-os="linux">
+            <td>Ubuntu / Debian</td>
+            <td><div class="links">
+              <a class="rec" href="https://gitlab.com/bztsrc/usbimager/raw/binaries/usbimager_1.0.10-amd64.deb">GTK .deb</a>
+              <a href="https://gitlab.com/bztsrc/usbimager/raw/binaries/usbimager_1.0.10_wo-amd64.deb">GTK wo .deb</a>
+            </div></td>
+            <td>With udisks2 support. Install with <code>sudo dpkg -i usbimager_*.deb</code></td>
+          </tr>
+          <tr>
+            <td>Raspberry Pi OS</td>
+            <td><div class="links">
+              <a href="https://gitlab.com/bztsrc/usbimager/raw/binaries/usbimager_1.0.10-armhf.deb">GTK .deb</a>
+              <a href="https://gitlab.com/bztsrc/usbimager/raw/binaries/usbimager_1.0.10_wo-armhf.deb">GTK wo .deb</a>
+              <a href="https://gitlab.com/bztsrc/usbimager/raw/binaries/usbimager_1.0.10-armv7l-linux-x11.zip">X11</a>
+            </div></td>
+            <td>armhf / armv7l</td>
+          </tr>
+          <tr>
+            <td>Arch / Manjaro</td>
+            <td><div class="links">
+              <a href="https://aur.archlinux.org/packages/usbimager/">AUR GTK</a>
+              <a href="https://aur.archlinux.org/packages/usbimager-bin/">AUR bin</a>
+              <a href="https://aur.archlinux.org/packages/usbimager-x11/">AUR X11</a>
+            </div></td>
+            <td>Community packages</td>
+          </tr>
+          <tr>
+            <td>Linux (any)</td>
+            <td><div class="links">
+              <a href="https://gitlab.com/bztsrc/usbimager/raw/binaries/usbimager_1.0.10-x86_64-linux-x11.zip">X11</a>
+              <a href="https://gitlab.com/bztsrc/usbimager/raw/binaries/usbimager_1.0.10_uf-x86_64-linux-x11.zip">X11 uf</a>
+              <a href="https://gitlab.com/bztsrc/usbimager/raw/binaries/usbimager_1.0.10_wo-x86_64-linux-x11.zip">X11 wo</a>
+              <a href="https://gitlab.com/bztsrc/usbimager/raw/binaries/usbimager_1.0.10-x86_64-linux-gtk.zip">GTK</a>
+            </div></td>
+            <td>x86_64 portable zip. The GTK build needs udisks2</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">The modern GTK interface shown above isn't in these binaries yet. To try it, <a href="#build">build from source</a>.</p>
+
+    <h2 style="margin-top:56px">Three steps</h2>
+    <p class="sub">That's the whole manual.</p>
+    <div class="steps">
+      <div class="card"><h3>Choose an image</h3><p>Click the folder button or drag an <code>.iso</code>, <code>.img</code>, <code>.xz</code>, <code>.zip</code>… file onto the window.</p></div>
+      <div class="card"><h3>Choose a drive</h3><p>Plug in your USB stick or SD card and select it from the list. Hit refresh if it isn't there yet.</p></div>
+      <div class="card"><h3>Write</h3><p>Press <b>Write</b>. When the progress bar reaches 100%, the data is on the drive and verified.</p></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Why not just use <code>dd</code>?</h2>
+    <p class="sub">If you're comfortable with the command line, <code>dd</code> works. For everyone else:</p>
+    <ul class="why">
+      <li>It's for people who'd rather not touch a terminal</li>
+      <li><code>dd</code> isn't cross-platform; Windows needs an app anyway</li>
+      <li>Compressed images are read directly, no pipes needed</li>
+      <li>Writes are verified against the image</li>
+      <li>Data is guaranteed to be on the device when it says done</li>
+      <li>It keeps you away from your system disk</li>
+      <li>It's a native application on every platform, not a <code>dd</code> wrapper</li>
+      <li>No extra DLLs: all parsers and decompressors are built in</li>
+    </ul>
+  </div>
+</section>
+
+<section id="build" class="alt">
+  <div class="wrap">
+    <h2>Build from source</h2>
+    <p class="sub">Needs a C compiler and make. The GTK frontend also needs the GTK 3 development headers; udisks2 is optional.</p>
+    <div class="two">
+      <div>
+        <h3>Modern GTK interface (Linux)</h3>
+<pre><span class="c"># Debian / Ubuntu dependencies</span>
+sudo apt install build-essential libgtk-3-dev
+<span class="c"># optional, lets non-root users write via udisks2</span>
+sudo apt install libudisks2-dev
+
+git clone <span id="fork-url">https://gitlab.com/bztsrc/usbimager.git</span>
+cd usbimager/src
+USE_GTK=1 make
+./usbimager</pre>
+      </div>
+      <div>
+        <h3>Other frontends</h3>
+<pre><span class="c"># default: X11 on Linux, GDI on Windows, Cocoa on macOS</span>
+make
+
+<span class="c"># other interfaces and options</span>
+USE_TUI=1 make      <span class="c"># text interface</span>
+USE_WRONLY=1 make   <span class="c"># write-only</span>
+USE_UNIFONT=1 make  <span class="c"># X11 with embedded font</span>
+
+make deb            <span class="c"># build a .deb package</span>
+make help           <span class="c"># list every option</span></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>USBImager is created by <a href="https://gitlab.com/bztsrc">bzt</a> and released under the MIT license.<br>
+      Official project: <a href="https://gitlab.com/bztsrc/usbimager">gitlab.com/bztsrc/usbimager</a> · <a href="https://bztsrc.gitlab.io/usbimager">bztsrc.gitlab.io/usbimager</a></p>
+    <p>This page showcases a fork with a modernized GTK interface.<br><a id="fork-link" href="https://gitlab.com/bztsrc/usbimager">View this fork's source</a></p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  // On <user>.github.io/<repo>/, point the fork links at github.com/<user>/<repo>
+  var host = location.hostname, m = host.match(/^([^.]+)\.github\.io$/);
+  if (m) {
+    var repo = location.pathname.split('/').filter(Boolean)[0] || host;
+    var url = 'https://github.com/' + m[1] + '/' + repo;
+    document.getElementById('fork-link').href = url;
+    document.getElementById('fork-url').textContent = url + '.git';
+  }
+
+  // Point the main download button at the build for the visitor's OS
+  var ua = navigator.userAgent, os = null, label = null;
+  if (/Windows/i.test(ua)) { os = 'windows'; label = 'Download for Windows'; }
+  else if (/Mac OS X|Macintosh/i.test(ua)) { os = 'mac'; label = 'Download for macOS'; }
+  else if (/Linux|X11/i.test(ua) && !/Android/i.test(ua)) { os = 'linux'; label = 'Download for Linux'; }
+  if (os) {
+    var rec = document.querySelector('tr[data-os="' + os + '"] a.rec');
+    if (rec) {
+      document.getElementById('dl-main').href = rec.href;
+      document.getElementById('dl-label').textContent = label;
+      document.getElementById('dl-meta').textContent = rec.textContent + ' · v1.0.10 · Free, no account, no telemetry, no ads.';
+    }
+  }
+})();
+</script>
+</body>
+</html>
