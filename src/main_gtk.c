@@ -133,6 +133,8 @@ static int onProgress(void *data)
 
 void main_onProgress(void *data)
 {
+    /* the GTK main loop may leave errno set, which would be mistaken for an I/O error */
+    int err = errno;
     if(mainwin) {
 #ifdef USE_THREADS
         g_idle_add(onProgress, data);
@@ -141,6 +143,7 @@ void main_onProgress(void *data)
         while(gtk_events_pending()) gtk_main_iteration();
 #endif
     }
+    errno = err;
 }
 
 static int onThreadError(void *data)
@@ -561,7 +564,10 @@ static void onClosing(GtkWidget *w, gpointer data)
 int main(int argc, char **argv)
 {
     int i, j;
-    char *lc = getenv("LANG"), btntext[256];
+    char *lc = getenv("LANG");
+#if !defined(USE_WRONLY) || !USE_WRONLY
+    char btntext[256];
+#endif
     GtkWidget *vbox, *hbox, *header, *card, *linked;
     GtkCssProvider *provider;
     GdkPixbuf *icon;

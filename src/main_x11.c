@@ -1738,8 +1738,9 @@ int main(int argc, char **argv)
         sprintf(blksizeList[i], "%3dM", (1<<i));
     refreshTarget();
 
+    /* without a window manager these atoms don't exist, and querying None is a fatal X error */
     a = XInternAtom(dpy, "_NET_SUPPORTED", True);
-    if(XGetWindowProperty(dpy, RootWindow(dpy, scr), a, 0, LONG_MAX, False, AnyPropertyType, &t, &i, &n, &b,
+    if(a != None && XGetWindowProperty(dpy, RootWindow(dpy, scr), a, 0, LONG_MAX, False, AnyPropertyType, &t, &i, &n, &b,
         (unsigned char**)&sa) == Success && sa && n > 0) {
         a = XInternAtom(dpy, "_NET_REQUEST_FRAME_EXTENTS", False);
         for(i = 0; i < (int)n && sa[i] != a; i++);
@@ -1751,7 +1752,7 @@ int main(int argc, char **argv)
             e.xclient.message_type = a;
             XSendEvent(dpy, RootWindow(dpy, scr), False, SubstructureNotifyMask | SubstructureRedirectMask, &e);
             a = XInternAtom(dpy, "_NET_FRAME_EXTENTS", True);
-            for(j = 100; j > 0 && (XGetWindowProperty(dpy, mainwin, a, 0, 4, False, AnyPropertyType, &t, &i,
+            for(j = 100; j > 0 && a != None && (XGetWindowProperty(dpy, mainwin, a, 0, 4, False, AnyPropertyType, &t, &i,
                     &n, &b, (unsigned char**)&extents) != Success || n != 4 || b != 0); j--)
                 XCheckTypedEvent(dpy, PropertyNotify, &e);
         }
