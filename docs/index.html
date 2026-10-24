@@ -292,14 +292,17 @@ footer p { margin: 0; }
 <section id="get" class="alt">
   <div class="wrap">
     <h2>Get ImageUploader</h2>
-    <p class="sub">Download version 1.0.0 for Linux (x86_64, Ubuntu 22.04 / Debian 12 or newer), or build it from source. All files and checksums are on the <a href="https://github.com/parsamajidi21/ImageUploader/releases">Releases page</a>.</p>
+    <p class="sub">Download version 1.0.0 for Windows, macOS or Linux, or build it from source. All files and checksums are on the <a href="https://github.com/parsamajidi21/ImageUploader/releases">Releases page</a>.</p>
     <div class="downloads">
-      <a class="dl rec" href="https://github.com/parsamajidi21/ImageUploader/releases/download/v1.0.0/imageuploader_1.0.0-amd64.deb"><b>Ubuntu / Debian</b><span>GTK · .deb · recommended</span></a>
+      <a class="dl" data-os="windows" href="https://github.com/parsamajidi21/ImageUploader/releases/download/v1.0.0/imageuploader_1.0.0-x86_64-win-gdi.zip"><b>Windows</b><span>10/11 · 64-bit · .zip</span></a>
+      <a class="dl" data-os="mac" href="https://github.com/parsamajidi21/ImageUploader/releases/download/v1.0.0/imageuploader_1.0.0-arm-macosx-cocoa.zip"><b>macOS · Apple silicon</b><span>M1 and newer · .app</span></a>
+      <a class="dl" href="https://github.com/parsamajidi21/ImageUploader/releases/download/v1.0.0/imageuploader_1.0.0-intel-macosx-cocoa.zip"><b>macOS · Intel</b><span>older Macs · .app</span></a>
+      <a class="dl" data-os="linux" href="https://github.com/parsamajidi21/ImageUploader/releases/download/v1.0.0/imageuploader_1.0.0-amd64.deb"><b>Ubuntu / Debian</b><span>GTK · .deb · recommended for Linux</span></a>
       <a class="dl" href="https://github.com/parsamajidi21/ImageUploader/releases/download/v1.0.0/imageuploader_1.0.0-x86_64-linux-gtk.zip"><b>Linux GTK</b><span>portable .zip · needs udisks2</span></a>
       <a class="dl" href="https://github.com/parsamajidi21/ImageUploader/releases/download/v1.0.0/imageuploader_1.0.0-x86_64-linux-x11.zip"><b>Linux X11</b><span>portable .zip · minimal</span></a>
       <a class="dl" href="https://github.com/parsamajidi21/ImageUploader/releases/download/v1.0.0/imageuploader_1.0.0_uf-x86_64-linux-x11.zip"><b>Linux X11 + font</b><span>for systems without Unicode fonts</span></a>
     </div>
-    <p class="note">Install the .deb with <code>sudo apt install ./imageuploader_1.0.0-amd64.deb</code>. Windows and macOS: build from source for now.</p>
+    <p class="note">Linux: <code>sudo apt install ./imageuploader_1.0.0-amd64.deb</code>. The Windows and macOS apps aren't code-signed yet: on Windows choose <i>More info → Run anyway</i> if SmartScreen warns; on macOS run <code>xattr -cr /Applications/ImageUploader.app</code> once after moving it to Applications.</p>
     <div class="two">
       <div>
         <h3>Linux (GTK, recommended)</h3>
@@ -362,5 +365,13 @@ make help           <span class="c"># list every option</span></pre>
   </div>
 </footer>
 
+<script>
+// highlight the download for the visitor's operating system
+(function () {
+  var ua = navigator.userAgent, os = /Windows/.test(ua) ? 'windows' : /Mac OS X|Macintosh/.test(ua) ? 'mac' : 'linux';
+  var el = document.querySelector('.dl[data-os="' + os + '"]');
+  if (el) el.classList.add('rec');
+})();
+</script>
 </body>
 </html>

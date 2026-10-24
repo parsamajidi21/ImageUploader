@@ -32,16 +32,22 @@
 
 ## Download
 
-Version 1.0.0 for Linux x86_64 (Ubuntu 22.04 / Debian 12 or newer):
+Version 1.0.0:
 
 | Package | Notes |
 |---------|-------|
-| [imageuploader_1.0.0-amd64.deb](https://github.com/parsamajidi21/ImageUploader/releases/download/v1.0.0/imageuploader_1.0.0-amd64.deb) | GTK, **recommended** for Ubuntu / Debian. Install with `sudo apt install ./imageuploader_1.0.0-amd64.deb` |
+| [imageuploader_1.0.0-x86_64-win-gdi.zip](https://github.com/parsamajidi21/ImageUploader/releases/download/v1.0.0/imageuploader_1.0.0-x86_64-win-gdi.zip) | **Windows** 10/11 64-bit. Extract and run `imageuploader.exe` |
+| [imageuploader_1.0.0_wo-x86_64-win-gdi.zip](https://github.com/parsamajidi21/ImageUploader/releases/download/v1.0.0/imageuploader_1.0.0_wo-x86_64-win-gdi.zip) | Windows, simplified write-only interface |
+| [imageuploader_1.0.0-arm-macosx-cocoa.zip](https://github.com/parsamajidi21/ImageUploader/releases/download/v1.0.0/imageuploader_1.0.0-arm-macosx-cocoa.zip) | **macOS** on Apple silicon, macOS 11+ |
+| [imageuploader_1.0.0-intel-macosx-cocoa.zip](https://github.com/parsamajidi21/ImageUploader/releases/download/v1.0.0/imageuploader_1.0.0-intel-macosx-cocoa.zip) | macOS on Intel Macs, macOS 10.13+ |
+| [imageuploader_1.0.0-amd64.deb](https://github.com/parsamajidi21/ImageUploader/releases/download/v1.0.0/imageuploader_1.0.0-amd64.deb) | **Linux** GTK, recommended for Ubuntu 22.04 / Debian 12 or newer. Install with `sudo apt install ./imageuploader_1.0.0-amd64.deb` |
 | [imageuploader_1.0.0-x86_64-linux-gtk.zip](https://github.com/parsamajidi21/ImageUploader/releases/download/v1.0.0/imageuploader_1.0.0-x86_64-linux-gtk.zip) | GTK, portable, needs udisks2 |
 | [imageuploader_1.0.0-x86_64-linux-x11.zip](https://github.com/parsamajidi21/ImageUploader/releases/download/v1.0.0/imageuploader_1.0.0-x86_64-linux-x11.zip) | X11, portable, minimal dependencies |
 | [imageuploader_1.0.0_uf-x86_64-linux-x11.zip](https://github.com/parsamajidi21/ImageUploader/releases/download/v1.0.0/imageuploader_1.0.0_uf-x86_64-linux-x11.zip) | X11 with an embedded font, for systems without Unicode X11 fonts |
 
-Checksums are on the [release page](https://github.com/parsamajidi21/ImageUploader/releases/tag/v1.0.0). For Windows and macOS, build from source.
+Linux packages are x86_64. Checksums are on the [release page](https://github.com/parsamajidi21/ImageUploader/releases/tag/v1.0.0).
+
+The Windows and macOS apps aren't code-signed yet. On Windows, if SmartScreen warns, choose *More info* → *Run anyway*. On macOS, after moving the app to Applications, run `xattr -cr /Applications/ImageUploader.app` once, otherwise macOS reports it as damaged.
 
 ## Building
 
