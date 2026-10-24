@@ -30,6 +30,19 @@
 - **18 languages**, detected from your system.
 - **Small, no dependencies:** every parser and decompressor is built in. No telemetry, no ads.
 
+## Download
+
+Version 1.0.0 for Linux x86_64 (Ubuntu 22.04 / Debian 12 or newer):
+
+| Package | Notes |
+|---------|-------|
+| [imageuploader_1.0.0-amd64.deb](https://github.com/parsamajidi21/ImageUploader/releases/download/v1.0.0/imageuploader_1.0.0-amd64.deb) | GTK, **recommended** for Ubuntu / Debian. Install with `sudo apt install ./imageuploader_1.0.0-amd64.deb` |
+| [imageuploader_1.0.0-x86_64-linux-gtk.zip](https://github.com/parsamajidi21/ImageUploader/releases/download/v1.0.0/imageuploader_1.0.0-x86_64-linux-gtk.zip) | GTK, portable, needs udisks2 |
+| [imageuploader_1.0.0-x86_64-linux-x11.zip](https://github.com/parsamajidi21/ImageUploader/releases/download/v1.0.0/imageuploader_1.0.0-x86_64-linux-x11.zip) | X11, portable, minimal dependencies |
+| [imageuploader_1.0.0_uf-x86_64-linux-x11.zip](https://github.com/parsamajidi21/ImageUploader/releases/download/v1.0.0/imageuploader_1.0.0_uf-x86_64-linux-x11.zip) | X11 with an embedded font, for systems without Unicode X11 fonts |
+
+Checksums are on the [release page](https://github.com/parsamajidi21/ImageUploader/releases/tag/v1.0.0). For Windows and macOS, build from source.
+
 ## Building
 
 You need a C compiler and `make`.
