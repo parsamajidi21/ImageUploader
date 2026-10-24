@@ -231,6 +231,17 @@ XZ_EXTERN enum xz_ret xz_dec_run(struct xz_dec *s, struct xz_buf *b);
 XZ_EXTERN void xz_dec_reset(struct xz_dec *s);
 
 /**
+ * xz_dec_boundary() - Check if the decoder is between two Streams
+ * @s:          Decoder state allocated using xz_dec_init()
+ *
+ * Because the decoder resets itself after each Stream (to support
+ * concatenated Streams) it never returns XZ_STREAM_END. This returns
+ * nonzero when the last Stream was decoded completely and no bytes of a new
+ * one were seen, so running out of input there isn't a truncation.
+ */
+XZ_EXTERN int xz_dec_boundary(struct xz_dec *s);
+
+/**
  * xz_dec_end() - Free the memory allocated for the decoder state
  * @s:          Decoder state allocated using xz_dec_init(). If s is NULL,
  *              this function does nothing.

@@ -922,6 +922,11 @@ error_bcj:
 	return NULL;
 }
 
+XZ_EXTERN int xz_dec_boundary(struct xz_dec *s)
+{
+	return s->sequence == SEQ_STREAM_HEADER && s->temp.pos == 0;
+}
+
 XZ_EXTERN void xz_dec_reset(struct xz_dec *s)
 {
 	s->sequence = SEQ_STREAM_HEADER;

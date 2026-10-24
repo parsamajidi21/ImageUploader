@@ -83,6 +83,7 @@ typedef struct {
     ZSTD_inBuffer zi;
     ZSTD_outBuffer zo;
     char type;
+    char eos;   /* decompressor reached the end of the compressed stream */
     time_t start;
 } stream_t;
 

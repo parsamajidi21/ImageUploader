@@ -296,7 +296,7 @@ int stream_open(stream_t *ctx, char *fn, int uncompr)
 {
     unsigned char *buff;
     char *url = NULL, *s, *d;
-    uint64_t fs = 0, hs = 0, zr;
+    uint64_t fs = 0, hs = 0, zr, ps = 0;
     int64_t insiz;
     int x = 0, y;
 #ifndef WINVER
@@ -619,11 +619,23 @@ int stream_open(stream_t *ctx, char *fn, int uncompr)
         fs = 0;
         if(ctx->buffer[257] == 'u' && ctx->buffer[258] == 's' && ctx->buffer[259] == 't' && ctx->buffer[260] == 'a' &&
             ctx->buffer[261] == 'r') {
-            /* ustar */
+            /* ustar, skip pax extended headers and GNU long names in front of the first file */
             if(verbose) printf(" tar\r\n");
-            if(ctx->buffer[156] != 0 && ctx->buffer[156] != '0') { fclose(ctx->f); return 2; }
-            ctx->fileSize = oct2bin(ctx->buffer + 0x7C, 11);
-            fs = 512;
+            while(fs + 512 <= ctx->avail && (ctx->buffer[fs + 156] == 'x' || ctx->buffer[fs + 156] == 'g' ||
+                ctx->buffer[fs + 156] == 'L' || ctx->buffer[fs + 156] == 'K')) {
+                y = (int)oct2bin(ctx->buffer + fs + 0x7C, 11);
+                if(y < 0 || fs + 512 + y > ctx->avail) { fclose(ctx->f); return 2; }
+                /* pax records are "(len) key=value\n", size= overrides the header's for files bigger than 8G */
+                if(ctx->buffer[fs + 156] == 'x')
+                    for(x = 0, s = ctx->buffer + fs + 512; x < y && atoi(s + x) > 0; x += atoi(s + x))
+                        if((d = memchr(s + x, ' ', y - x)) && !memcmp(d + 1, "size=", 5))
+                            ps = strtoull(d + 6, NULL, 10);
+                fs += 512 + ((y + 511) & ~511);
+            }
+            if(fs + 512 > ctx->avail || memcmp(ctx->buffer + fs + 257, "ustar", 5) ||
+                (ctx->buffer[fs + 156] != 0 && ctx->buffer[fs + 156] != '0')) { fclose(ctx->f); return 2; }
+            ctx->fileSize = ps ? ps : oct2bin(ctx->buffer + fs + 0x7C, 11);
+            fs += 512;
         } else
         if(ctx->buffer[0] == '0' && ctx->buffer[1] == '7' && ctx->buffer[2] == '0' && ctx->buffer[3] == '7' &&
             ctx->buffer[4] == '0') {
@@ -699,7 +711,7 @@ int stream_read(stream_t *ctx)
             do {
                 if(!ctx->zstrm.avail_in) {
                     insiz = ctx->compSize - ctx->cmrdSize;
-                    if(insiz < 1) { ret = Z_STREAM_END; break; }
+                    if(insiz < 1) { if(!ctx->eos) { if(verbose) printf("  compressed input truncated\r\n"); return -1; } ret = Z_STREAM_END; break; }
                     if(insiz > buffer_size) insiz = buffer_size;
                     if(verbose > 1) printf("  deflate cmrdSize %" PRIu64
                         " insiz %" PRId64 "\r\n", ctx->cmrdSize, insiz);
@@ -709,6 +721,7 @@ int stream_read(stream_t *ctx)
                     ctx->cmrdSize += (uint64_t)insiz;
                 }
                 ret = inflate(&ctx->zstrm, Z_NO_FLUSH);
+                if(ret == Z_STREAM_END) ctx->eos = 1;
             } while(ret == Z_OK && ctx->zstrm.avail_out > 0);
             if(ret != Z_OK && ret != Z_STREAM_END) {
                 if(verbose) printf("  zlib inflate error %d\r\n", ret);
@@ -722,7 +735,7 @@ int stream_read(stream_t *ctx)
             do {
                 if(!ctx->bstrm.avail_in) {
                     insiz = ctx->compSize - ctx->cmrdSize;
-                    if(insiz < 1) { ret = BZ_STREAM_END; break; }
+                    if(insiz < 1) { if(!ctx->eos) { if(verbose) printf("  compressed input truncated\r\n"); return -1; } ret = BZ_STREAM_END; break; }
                     if(insiz > buffer_size) insiz = buffer_size;
                     if(verbose > 1) printf("  bzip2 cmrdSize %" PRIu64
                         " insiz %" PRId64 "\r\n", ctx->cmrdSize, insiz);
@@ -732,6 +745,7 @@ int stream_read(stream_t *ctx)
                     ctx->cmrdSize += (uint64_t)insiz;
                 }
                 ret = BZ2_bzDecompress(&ctx->bstrm);
+                if(ret == BZ_STREAM_END) ctx->eos = 1;
             } while(ret == BZ_OK && ctx->bstrm.avail_out > 0);
             if(ret != BZ_OK && ret != BZ_STREAM_END) {
                 if(verbose) printf("  bzip2 decompress error %d\r\n", ret);
@@ -746,7 +760,7 @@ int stream_read(stream_t *ctx)
             do {
                 if(ctx->xstrm.in_pos == ctx->xstrm.in_size) {
                     insiz = ctx->compSize - ctx->cmrdSize;
-                    if(insiz < 1) { ret = XZ_STREAM_END; break; }
+                    if(insiz < 1) { if(!ctx->eos) { if(verbose) printf("  compressed input truncated\r\n"); return -1; } ret = XZ_STREAM_END; break; }
                     if(insiz > buffer_size) insiz = buffer_size;
                     if(verbose > 1) printf("  xz cmrdSize %" PRIu64
                         " insiz %" PRId64 "\r\n", ctx->cmrdSize, insiz);
@@ -758,6 +772,8 @@ int stream_read(stream_t *ctx)
                 }
                 ret = xz_dec_run(ctx->xz, &ctx->xstrm);
                 if(ret == XZ_UNSUPPORTED_CHECK) ret = XZ_OK;
+                /* the decoder resets itself after each stream instead of returning XZ_STREAM_END */
+                ctx->eos = xz_dec_boundary(ctx->xz);
             } while(ret == XZ_OK && ctx->xstrm.out_pos < ctx->xstrm.out_size);
             if(ret != XZ_OK && ret != XZ_STREAM_END) {
                 if(verbose) printf("  xz decompress error %d\r\n", ret);
@@ -772,7 +788,7 @@ int stream_read(stream_t *ctx)
             do {
                 if(ctx->zi.pos == ctx->zi.size) {
                     insiz = ctx->compSize - ctx->cmrdSize;
-                    if(insiz < 1) { ret = 0; break; }
+                    if(insiz < 1) { if(!ctx->eos) { if(verbose) printf("  compressed input truncated\r\n"); return -1; } ret = 0; break; }
                     if(insiz > buffer_size) insiz = buffer_size;
                     if(verbose > 1) printf("  zstd cmrdSize %" PRIu64
                         " insiz %" PRId64 "\r\n", ctx->cmrdSize, insiz);
@@ -783,6 +799,8 @@ int stream_read(stream_t *ctx)
                     ctx->cmrdSize += (uint64_t)insiz;
                 }
                 ret = (int) ZSTD_decompressStream(ctx->zstd, &ctx->zo, &ctx->zi);
+                /* zero means a frame is fully decoded and flushed */
+                ctx->eos = !ret;
             } while(!ZSTD_isError(ret) && ctx->zo.pos < ctx->zo.size);
             if(ZSTD_isError(ret)) {
                 if(verbose) printf("  zstd decompress error %d\r\n", ret);
@@ -926,8 +944,14 @@ int stream_write(stream_t *ctx, char *buffer, int size)
             /* there's a bug in the newest Windows 10 kernel, see issue #53, so do not use sparse file under Win */
 #if !defined(WINVER) || defined(WINKRNL_NOT_BUGGY_ANY_MORE)
             if(i == size) {
-                /* if all bytes zero, then don't write just seek, that will create a sparse file */
-                fseek(ctx->f, (long)size, SEEK_CUR);
+                /* if all bytes zero, then don't write just seek, that will create a sparse file. Write the very
+                 * last byte though, otherwise the file wouldn't be extended and trailing zeros would be lost */
+                if(ctx->readSize >= ctx->fileSize) {
+                    fseek(ctx->f, (long)size - 1, SEEK_CUR);
+                    if(!fwrite(buffer, 1, 1, ctx->f))
+                        size = 0;
+                } else
+                    fseek(ctx->f, (long)size, SEEK_CUR);
             } else
 #endif
             {
@@ -942,7 +966,8 @@ int stream_write(stream_t *ctx, char *buffer, int size)
             do {
                 remaining = ZSTD_compressStream2(ctx->zcmp, &ctx->zo , &ctx->zi,
                     ctx->readSize >= ctx->fileSize ? ZSTD_e_end : ZSTD_e_continue);
-                if(!fwrite(ctx->compBuf, ctx->zo.pos, 1, ctx->g)) {
+                /* the compressor might buffer the input without any output yet */
+                if(ctx->zo.pos && !fwrite(ctx->compBuf, ctx->zo.pos, 1, ctx->g)) {
                     size = 0;
                     break;
                 }
