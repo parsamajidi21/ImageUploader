@@ -283,12 +283,13 @@ deb: $(TARGET)
 	@cp misc/icon64.png usr/share/icons/hicolor/64x64/apps/imageuploader.png
 	@cp misc/icon32.png usr/share/icons/hicolor/32x32/apps/imageuploader.png
 	@cp misc/icon16.png usr/share/icons/hicolor/16x16/apps/imageuploader.png
-	@cat misc/deb_control | sed s/ARCH/$(DEBARCH)/g | sed s/SIZE/`du -s usr|cut -f 1`/g >DEBIAN/control
+	@cat misc/deb_control | sed s/ARCH/$(DEBARCH)/g | sed s/SIZE/`du -s usr|cut -f 1`/g $(if $(USE_UDISKS2),,| sed /^Depends:/d) >DEBIAN/control
 	@md5sum `find usr -type f` >DEBIAN/md5sums
 	@cp ../LICENSE DEBIAN/copyright
 	@echo "2.0" >debian-binary
 	@tar -czvf data.tar.gz usr
-ifeq ($(USE_LIBUI)$(USE_GTK),)
+# without udisks2 the binary needs the setgid disk bit to open the devices
+ifeq ($(USE_UDISKS2),)
 	@cp misc/deb_postinst DEBIAN/postinst
 	@chmod +x DEBIAN/postinst
 	@tar -C DEBIAN -czvf control.tar.gz control copyright md5sums postinst

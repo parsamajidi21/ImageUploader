@@ -103,6 +103,11 @@ void disks_refreshlist(void)
     memset(disks_targets, 0xff, sizeof(disks_targets));
     memset(disks_capacity, 0, sizeof(disks_capacity));
 #if DISKS_TEST
+    {
+        /* a previously written test.bin can be read back as a backup */
+        struct stat st;
+        if(!stat("./test.bin", &st)) disks_capacity[i] = st.st_size;
+    }
     disks_targets[i++] = 'T';
     main_addToCombobox("sdT ./test.bin");
 #endif
@@ -464,9 +469,10 @@ sererr:         main_getErrorMessage();
 #if DISKS_TEST
     if(disks_targets[targetId] == 'T') {
         sprintf(deviceName, "./test.bin");
-        unlink(deviceName);
+        /* size is zero for reads (and for compressed images of unknown size), keep the file then */
+        if(size) unlink(deviceName);
         errno = 0;
-        ret = open(deviceName, O_RDWR | O_EXCL | O_CREAT, 0644);
+        ret = open(deviceName, O_RDWR | O_CREAT, 0644);
         if(verbose)
             printf("disks_open(%s)\r\n  fd=%d errno=%d err=%s\r\n",
                 deviceName, ret, errno, strerror(errno));
