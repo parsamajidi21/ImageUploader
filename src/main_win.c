@@ -605,7 +605,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszArgum
                 if(bkpdir) break;
                 if(*s == '\"') s++;
                 for(e = s; *e && *e != ' ' && *e != '\"'; e++);
-                bkpdir = malloc(2 * ((unsigned long)e - (unsigned long)s + 1));
+                bkpdir = malloc(2 * (e - s + 1));
                 if(bkpdir) {
                     for(i = 0; s < e; s++, i++)
                         bkpdir[i] = (wchar_t)s[0];

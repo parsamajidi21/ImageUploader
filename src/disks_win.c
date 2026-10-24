@@ -224,7 +224,7 @@ void *disks_open(int targetId, uint64_t size)
     if(disks_targets[targetId] >= 1024) {
         sprintf(fn, "\\\\.\\COM%d", disks_targets[targetId] - 1024);
         ret = CreateFileA(fn, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_FLAG_NO_BUFFERING, NULL);
-        if(verbose) printf("disks_open(%s) serial\r\n  fd=%d errno=%d\r\n", fn, (int)ret, errno);
+        if(verbose) printf("disks_open(%s) serial\r\n  fd=%p errno=%d\r\n", fn, (void*)ret, errno);
         if(ret == INVALID_HANDLE_VALUE) {
             main_getErrorMessage();
             return NULL;
@@ -330,7 +330,7 @@ sererr:     main_getErrorMessage();
     sprintf(fn, "\\\\.\\PhysicalDrive%d", disks_targets[targetId]);
     ret = CreateFileA(fn, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_FLAG_NO_BUFFERING, NULL);
     if(verbose)
-        printf("disks_open(%s)\r\n  fd=%d nLocks=%d\r\n", fn, (int)ret, nLocks);
+        printf("disks_open(%s)\r\n  fd=%p nLocks=%d\r\n", fn, (void*)ret, nLocks);
     if (ret == INVALID_HANDLE_VALUE) {
         main_getErrorMessage();
         disks_close(NULL);
@@ -349,7 +349,7 @@ void disks_close(void *data)
     int i, k;
 
     if(verbose)
-        printf("disks_close(%d) nLocks=%d\r\n", (int)data, nLocks);
+        printf("disks_close(%p) nLocks=%d\r\n", data, nLocks);
 
     if(hnd != NULL && hnd != (HANDLE)-1 && hnd != (HANDLE)-2 && hnd != (HANDLE)-3 && hnd != (HANDLE)-4)
         CloseHandle(hnd);
