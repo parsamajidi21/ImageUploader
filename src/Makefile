@@ -151,7 +151,17 @@ endif
 FRM = linux-gtk
 GRP =
 endif
-ifneq ($(USE_UDISKS2)$(USE_GTK),)
+# GTK uses udisks2 by default when it's available, otherwise falls back to the disk group like X11
+ifneq ($(USE_GTK),)
+ifeq ($(USE_UDISKS2),)
+ifeq ($(shell pkg-config --exists udisks2 2>/dev/null && echo 1),1)
+USE_UDISKS2 = 1
+else
+GRP = disk
+endif
+endif
+endif
+ifneq ($(USE_UDISKS2),)
 CFLAGS += -DUSE_UDISKS2=1 $(shell pkg-config --cflags udisks2) -I/usr/include/gio-unix-2.0
 LIBS += $(shell pkg-config --libs udisks2)
 endif
