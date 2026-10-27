@@ -43,7 +43,7 @@ Version 1.0.0:
 | [imageuploader_1.0.0-amd64.deb](https://github.com/parsamajidi21/ImageUploader/releases/download/v1.0.0/imageuploader_1.0.0-amd64.deb) | **Linux** GTK, recommended for Ubuntu 22.04 / Debian 12 or newer. Install with `sudo apt install ./imageuploader_1.0.0-amd64.deb` |
 | [imageuploader_1.0.0-x86_64-linux-gtk.zip](https://github.com/parsamajidi21/ImageUploader/releases/download/v1.0.0/imageuploader_1.0.0-x86_64-linux-gtk.zip) | GTK, portable, needs udisks2 |
 | [imageuploader_1.0.0-x86_64-linux-x11.zip](https://github.com/parsamajidi21/ImageUploader/releases/download/v1.0.0/imageuploader_1.0.0-x86_64-linux-x11.zip) | X11, portable, minimal dependencies |
-| [imageuploader_1.0.0_uf-x86_64-linux-x11.zip](https://github.com/parsamajidi21/ImageUploader/releases/download/v1.0.0/imageuploader_1.0.0_uf-x86_64-linux-x11.zip) | X11 with an embedded font, for systems without Unicode X11 fonts |
+| [imageuploader_1.0.0_uf-x86_64-linux-x11.zip](https://github.com/parsamajidi21/ImageUploader/releases/download/v1.0.0/imageuploader_1.0.0_uf-x86_64-linux-x11.zip) | X11 with an embedded fallback font, for systems without libXft |
 
 Linux packages are x86_64. Checksums are on the [release page](https://github.com/parsamajidi21/ImageUploader/releases/tag/v1.0.0).
 
@@ -121,7 +121,7 @@ If your drive isn't listed, it may be bigger than the size limit (256 GiB by def
 | `-a`                  | List all devices, **including system disks** — be careful |
 | `-f`                  | Force write: always write, even blocks that already match |
 | `-s[baud]`, `-S[baud]`| Allow serial ports as targets (`-S` adds a raspbootin handshake) |
-| `-F(xlfd)`            | X11 font to use |
+| `-F(font)`            | X11 font: a fontconfig name like `-F"DejaVu Sans:size=12"`, or an XLFD core font |
 | `--version`           | Print the version |
 | *(directory)*         | The first non-flag argument is the backup directory |
 

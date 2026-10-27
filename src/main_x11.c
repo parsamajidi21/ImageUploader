@@ -37,6 +37,7 @@
 #include <stdlib.h>
 #include <dirent.h>
 #include <unistd.h>
+#include <dlfcn.h>
 #include <sys/stat.h>
 #include "lang.h"
 #include "stream.h"
@@ -45,6 +46,53 @@
 #include "misc/wm_icon.h"       /* window manager icon */
 
 int usleep(unsigned long int);
+
+/* width of the buffer size selector, fits "512 MiB" */
+#define BLKW (4*fonth+20)
+
+/* Xft is loaded at run time, so neither building nor running needs it. When it's there, text is drawn with
+ * the desktop's fontconfig fonts (anti-aliased, every UNICODE glyph, HiDPI aware), otherwise with core X11
+ * fonts as before. These are the few types we need, the same layout as in X11/Xft/Xft.h and Xrender.h */
+typedef struct { int ascent, descent, height, max_advance_width; void *charset, *pattern; } XftFont;
+typedef struct { unsigned short red, green, blue, alpha; } XftRenderColor;
+typedef struct { unsigned long pixel; XftRenderColor color; } XftColor;
+typedef struct { unsigned short width, height; short x, y, xOff, yOff; } XftGlyphInfo;
+typedef struct _XftDraw XftDraw;
+static struct {
+    XftFont *(*FontOpenName)(Display *dpy, int screen, const char *name);
+    void (*FontClose)(Display *dpy, XftFont *font);
+    XftDraw *(*DrawCreate)(Display *dpy, Drawable d, Visual *visual, Colormap cmap);
+    void (*DrawDestroy)(XftDraw *draw);
+    Bool (*DrawSetClipRectangles)(XftDraw *draw, int x, int y, const XRectangle *rects, int n);
+    void (*DrawStringUtf8)(XftDraw *draw, const XftColor *color, XftFont *font, int x, int y,
+        const unsigned char *str, int len);
+    void (*TextExtentsUtf8)(Display *dpy, XftFont *font, const unsigned char *str, int len, XftGlyphInfo *extents);
+    Bool (*ColorAllocValue)(Display *dpy, Visual *visual, Colormap cmap, const XftRenderColor *color, XftColor *result);
+} xft;
+static void *xftlib = NULL;
+static XftFont *xftfont = NULL;
+
+/**
+ * Load libXft and open a fontconfig font, like "sans-serif:size=10". Returns 0 if not available
+ */
+static int xftOpen(Display *d, int s, const char *name)
+{
+    const char *libs[] = { "libXft.so.2", "libXft.so", "libXft.2.dylib", "/opt/X11/lib/libXft.2.dylib", NULL };
+    int i;
+    for(i = 0; libs[i] && !xftlib; i++)
+        xftlib = dlopen(libs[i], RTLD_NOW | RTLD_LOCAL);
+    if(!xftlib) return 0;
+    /* copying through an union, because ISO C forbids converting an object pointer to a function pointer */
+#define XFTSYM(f) { union { void *p; void (*fn)(void); } u; u.p = dlsym(xftlib, "Xft" #f); \
+        if(u.p) memcpy(&xft.f, &u.fn, sizeof(xft.f)); else goto err; }
+    XFTSYM(FontOpenName) XFTSYM(FontClose) XFTSYM(DrawCreate) XFTSYM(DrawDestroy) XFTSYM(DrawSetClipRectangles)
+    XFTSYM(DrawStringUtf8) XFTSYM(TextExtentsUtf8) XFTSYM(ColorAllocValue)
+#undef XFTSYM
+    if((xftfont = xft.FontOpenName(d, s, name))) return 1;
+err:
+    dlclose(xftlib); xftlib = NULL;
+    return 0;
+}
 
 typedef struct {
     char *name;
@@ -62,13 +110,20 @@ enum {
     color_wrbtn, color_rdbtn,
     NUM_COLOR
 };
+/* flat colors, the same look as the GTK interface */
 static unsigned long int palette[NUM_COLOR] = {
-    0xF2F2F2, 0xFFFFFF, 0x2065DE, 0xB4CDF8,
-    0xE9ECF0, 0xABADB3, 0xE2E3EA, 0xE3E9EF,
-    0xFCFCFC, 0xECECEC, 0xF6F6F6, 0xDDDDDD,
-    0xEFC8C1, 0xE49E90, 0xDDA398, 0xD47E6A,
-    0x919191, 0x777777, 0x707070, 0x303030,
-    0x874D3F, 0x606060
+    /* window background, input background, accent (focus, selection), light accent (focus ring) */
+    0xF6F5F4, 0xFFFFFF, 0x3584E4, 0x99C1F1,
+    /* input borders, scrollbar / progress trough */
+    0xCDC7C2, 0xCDC7C2, 0xDEDDDA, 0xCDC7C2,
+    /* button background, hovered, pressed / disabled, header */
+    0xFFFFFF, 0xFAFAFA, 0xE8E6E3, 0xF0EEEC,
+    /* destructive (Write) button background, pressed and the error color */
+    0xE01B24, 0xE01B24, 0xC01C28, 0xA51D2D,
+    /* button borders, disabled text, text */
+    0xCDC7C2, 0xB8B3AE, 0x9A9996, 0x2E3436,
+    /* Write and Read arrows */
+    0xFFFFFF, 0x5E5C64
 };
 
 char **lang = NULL;
@@ -159,9 +214,36 @@ static int fncmp(const void *a, const void *b)
 
 /* because X11 is a low level protocol, we need some widgets */
 
+/**
+ * Get the Xft color for a GC's foreground. GCs only use palette colors (anything else is drawn black)
+ */
+static XftColor *xftColor(GC g)
+{
+    static XftColor cache[NUM_COLOR + 1];
+    static char have[NUM_COLOR + 1];
+    XftRenderColor rc;
+    XGCValues v;
+    unsigned long rgb = 0;
+    int i;
+
+    XGetGCValues(dpy, g, GCForeground, &v);
+    for(i = 0; i < NUM_COLOR && colors[i].pixel != v.foreground; i++);
+    if(i < NUM_COLOR) rgb = palette[i];
+    if(!have[i]) {
+        rc.red = ((rgb >> 16) & 0xFF) * 0x101; rc.green = ((rgb >> 8) & 0xFF) * 0x101; rc.blue = (rgb & 0xFF) * 0x101;
+        rc.alpha = 0xFFFF;
+        if(!xft.ColorAllocValue(dpy, DefaultVisual(dpy, scr), DefaultColormap(dpy, scr), &rc, &cache[i])) return NULL;
+        have[i] = 1;
+    }
+    return &cache[i];
+}
+
 static int mainPrint(Window win, GC gc, int x, int y, int w, int style, char *s)
 {
     XRectangle clip = { x, y, w - (style & 3 ? 0 : 8), fonth };
+    XftGlyphInfo gi;
+    XftDraw *draw;
+    XftColor *color;
     int l, tw = 0;
 #if USEUTF8 == 1
     unsigned int c;
@@ -170,34 +252,39 @@ static int mainPrint(Window win, GC gc, int x, int y, int w, int style, char *s)
 #else
     char *str = s;
 #endif
-    int i;
+    int i = 0;
 #endif
 
     if(!s || !*s) return 0;
 
     l = strlen(s);
+    if(xftfont) {
+        xft.TextExtentsUtf8(dpy, xftfont, (unsigned char*)s, l, &gi);
+        tw = gi.xOff;
+    } else {
 #if USEUTF8 == 1
-    for(i = 0; i < l && *s; i++) {
-        if((*s & 128) != 0) {
-            if(!(*s & 32)) { c = ((*s & 0x1F)<<6)|(*(s+1) & 0x3F); s++; } else
-            if(!(*s & 16)) { c = ((*s & 0xF)<<12)|((*(s+1) & 0x3F)<<6)|(*(s+2) & 0x3F); s += 2; } else
-            if(!(*s & 8)) { c = ((*s & 0x7)<<18)|((*(s+1) & 0x3F)<<12)|((*(s+2) & 0x3F)<<6)|(*(s+3) & 0x3F); *s += 3; }
-            else c = 0;
-        } else c = *s;
-        s++;
+        for(i = 0; i < l && *s; i++) {
+            if((*s & 128) != 0) {
+                if(!(*s & 32)) { c = ((*s & 0x1F)<<6)|(*(s+1) & 0x3F); s++; } else
+                if(!(*s & 16)) { c = ((*s & 0xF)<<12)|((*(s+1) & 0x3F)<<6)|(*(s+2) & 0x3F); s += 2; } else
+                if(!(*s & 8)) { c = ((*s & 0x7)<<18)|((*(s+1) & 0x3F)<<12)|((*(s+2) & 0x3F)<<6)|(*(s+3) & 0x3F); *s += 3; }
+                else c = 0;
+            } else c = *s;
+            s++;
 #ifdef USE_UNIFONT
-        if(c < 65536) tw += ws[c] + 1;
+            if(c < 65536) tw += ws[c] + 1;
 #else
-        str[i].byte2 = c & 0xFF;
-        str[i].byte1 = c >> 8;
+            str[i].byte2 = c & 0xFF;
+            str[i].byte1 = c >> 8;
+#endif
+        }
+#ifndef USE_UNIFONT
+        tw = XTextWidth16(font, str, i);
+#endif
+#else
+        tw = XTextWidth(font, s, l);
 #endif
     }
-#ifndef USE_UNIFONT
-    tw = XTextWidth16(font, str, i);
-#endif
-#else
-    tw = XTextWidth(font, s, l);
-#endif
     if(w < 1) return tw;
 
     switch(style & 3) {
@@ -213,18 +300,15 @@ static int mainPrint(Window win, GC gc, int x, int y, int w, int style, char *s)
         break;
         case 3: x -= tw - w; break;
     }
-    if((style & 4) && !inactive) {
-        XSetClipRectangles(dpy, shdgc, 0, 0, &clip, 1, Unsorted);
-#if USEUTF8 == 1
-#ifdef USE_UNIFONT
-        printString(win, shdgc, x+1, y+1, str);
-#else
-        XDrawString16(dpy, win, shdgc, x+1, y+fonta+1, str, i);
-#endif
-#else
-        XDrawString(dpy, win, shdgc, x+1, y+fonta+1, s, l);
-#endif
-        XSetClipMask(dpy, shdgc, None);
+    if(xftfont) {
+        if((draw = xft.DrawCreate(dpy, win, DefaultVisual(dpy, scr), DefaultColormap(dpy, scr)))) {
+            if((color = xftColor(gc))) {
+                xft.DrawSetClipRectangles(draw, 0, 0, &clip, 1);
+                xft.DrawStringUtf8(draw, color, xftfont, x, y + fonta, (unsigned char*)s, l);
+            }
+            xft.DrawDestroy(draw);
+        }
+        return tw;
     }
     XSetClipRectangles(dpy, gc, 0, 0, &clip, 1, Unsorted);
 #if USEUTF8 == 1
@@ -240,181 +324,115 @@ static int mainPrint(Window win, GC gc, int x, int y, int w, int style, char *s)
     return tw;
 }
 
+/**
+ * Fill a rounded rectangle, the bottom right pixel is at x+w-1, y+h-1
+ */
+static void fillRound(Window win, int x, int y, int w, int h, int r, int color)
+{
+    XSetForeground(dpy, gc, colors[color].pixel);
+    if(r > w / 2) r = w / 2;
+    if(r > h / 2) r = h / 2;
+    if(r < 1) { XFillRectangle(dpy, win, gc, x, y, w, h); return; }
+    XFillRectangle(dpy, win, gc, x + r, y, w - 2*r, h);
+    XFillRectangle(dpy, win, gc, x, y + r, w, h - 2*r);
+    XFillArc(dpy, win, gc, x, y, 2*r, 2*r, 90*64, 90*64);
+    XFillArc(dpy, win, gc, x + w - 2*r, y, 2*r, 2*r, 0, 90*64);
+    XFillArc(dpy, win, gc, x, y + h - 2*r, 2*r, 2*r, 180*64, 90*64);
+    XFillArc(dpy, win, gc, x + w - 2*r, y + h - 2*r, 2*r, 2*r, 270*64, 90*64);
+}
+
+/**
+ * A rounded box with a 1 pixel border and a focus ring, covering x..x+w, y..y+h like the old 3D widgets did
+ */
+static void mainFrame(Window win, int x, int y, int w, int h, int border, int fill, int focus)
+{
+    int r = fonth / 4 < 3 ? 3 : fonth / 4;
+    XSetForeground(dpy, gc, colors[color_winbg].pixel);
+    XFillRectangle(dpy, win, gc, x - 1, y - 1, w + 3, h + 3);
+    if(focus) fillRound(win, x - 1, y - 1, w + 3, h + 3, r + 1, color_inplght);
+    fillRound(win, x, y, w + 1, h + 1, r, focus ? color_inpdrk : border);
+    fillRound(win, x + 1, y + 1, w - 1, h - 1, r - 1, fill);
+}
+
+/**
+ * A small filled triangle, pointing down or up
+ */
+static void mainArrow(Window win, int cx, int cy, int down, int color)
+{
+    int a = fonth / 4 < 3 ? 3 : fonth / 4;
+    XPoint p[3] = {
+        { cx - a, cy + (down ? -a/2 : a/2) }, { cx + a + 1, cy + (down ? -a/2 : a/2) }, { cx, cy + (down ? a/2 + 1 : -a/2 - 1) }
+    };
+    XSetForeground(dpy, gc, colors[color].pixel);
+    XFillPolygon(dpy, win, gc, p, 3, Convex, CoordModeOrigin);
+}
+
 static void mainInputBox(Window win, int x, int y, int w, int sel, char *txt)
 {
-    XPoint points[8] = {
-        { x, y }, { x + 1, y + 1 }, { x + w, y }, { x + w -1, y + 1 },
-        { x, y + fonth + 8 }, { x + 1, y + fonth + 7 },
-        { x + w, y + fonth + 8 }, { x + w - 1, y + fonth + 7 }};
     if(w < 1) return;
-    XSetForeground(dpy, gc, colors[sel ? color_inplght : color_winbg].pixel);
-    XDrawLine(dpy, win, gc, x, y-1, x+w, y-1);
-    XDrawLine(dpy, win, gc, x-1, y, x-1, y+fonth+8);
-    XDrawLine(dpy, win, gc, x+w+1, y, x+w+1, y+fonth+8);
-    XDrawLine(dpy, win, gc, x, y+fonth+9, x+w, y+fonth+9);
-
-    XSetForeground(dpy, gc, colors[inactive ? color_btnbg2 : (sel ? color_inpdrk : color_inpbrd1)].pixel);
-    XDrawLine(dpy, win, gc, x+1, y, x+w-1, y);
-    XSetForeground(dpy, gc, colors[inactive ? color_btnbg2 : (sel ? color_inpdrk : color_inpbrd2)].pixel);
-    XDrawLine(dpy, win, gc, x, y+1, x, y+fonth+7);
-    XDrawLine(dpy, win, gc, x+w, y+1, x+w, y+fonth+7);
-    XSetForeground(dpy, gc, colors[inactive ? color_btnbg2 : (sel ? color_inpdrk : color_inpbrd3)].pixel);
-    XDrawLine(dpy, win, gc, x+1, y+fonth+8, x+w-1, y+fonth+8);
-    XSetForeground(dpy, gc, colors[inactive ? color_winbg : color_inputbg].pixel);
-    XFillRectangle(dpy, win, gc, x+1, y+1, w-1, fonth+7);
-    XSetForeground(dpy, gc, colors[inactive ? color_btnbg2 : (sel ? color_inplght : color_inpbrd0)].pixel);
-    XDrawPoints(dpy, win, gc, points, 8, CoordModeOrigin);
-    mainPrint(win, txtgc, x+4, y+4, w-8, 2, txt);
+    mainFrame(win, x, y, w, fonth + 8, color_inpbrd1, inactive ? color_winbg : color_inputbg, sel);
+    mainPrint(win, txtgc, x+6, y+4, w-10, 2, txt);
 }
 
 static void mainButton(Window win, int x, int y, int w, int sel, int pressed, int style, char *txt)
 {
-    int bg0 = color_btnbg0, bg1 = color_btnbg1, bg2 = color_btnbg2, bg3 = color_btnbg3;
-    XSegment border1[4] = {
-        { x+3, y, x+w-3, y }, { x, y+3, x, y+fonth+5 },
-        { x+w, y+3, x+w, y+fonth+5 }, { x+3, y+fonth+8, x+w-3, y+fonth+8 }
-    }, border2[3] = {
-        { x+3, y+1, x+w-3, y+1 }, { x+1, y+3, x+1, y+fonta },
-        { x+w-1, y+3, x+w-1, y+fonta }
-    }, border3[3] = {
-        { x+1, y+fonta+1, x+1, y+fonth+5 }, { x+w-1, y+fonta+1, x+w-1, y+fonth+5 },
-        { x+3, y+fonth+7, x+w-3, y+fonth+7 }
-    };
-    XPoint border4[8] = {
-        { x+2, y}, { x+w-2, y }, { x, y+2 }, { x+w, y+2 },
-        { x, y+fonth+6 }, { x+w, y+fonth+6}, { x+2, y+fonth+8 }, { x+w-2, y+fonth+8 }
-    }, border5[12] = {
-        { x+1, y }, { x+w-1, y }, { x, y+1 }, { x+1, y+1 }, { x+w-2, y+1 },
-        { x+w-1, y+1 }, { x, y+fonth+7 }, { x+1, y+fonth+7 }, { x+w-1, y+fonth+7 },
-        { x+w, y+fonth+7 }, { x+1, y+fonth+8 }, { x+w-1, y+fonth+8 }
-    }, border6[4] = {
-        { x+2, y+1 }, { x+w-2, y+1 }, { x+1, y+2 }, { x+w-1, y+2 }
-    }, border7[4] = {
-        { x+1, y+fonth+6 }, { x+2, y+fonth+7 }, { x+w-1, y+fonth+6}, { x+w-2, y+fonth+7 }
-    };
+    int fill = color_btnbg0, border = color_btnbrd0, light = 0;
+    XGCValues v;
     if(w < 8) return;
     if(inactive) pressed &= ~1;
     switch(pressed) {
-        case 1:
-            bg0 = color_btnbg2; bg1 = color_btnbg3; bg2 = color_btnbg0; bg3 = color_btnbg1;
-        break;
-        case 2:
-            bg0 = color_wbtnbg0; bg1 = color_wbtnbg1; bg2 = color_wbtnbg2; bg3 = color_wbtnbg3;
-        break;
-        case 3:
-            bg0 = color_wbtnbg2; bg1 = color_wbtnbg3; bg2 = color_wbtnbg0; bg3 = color_wbtnbg1;
-        break;
+        case 1: fill = color_btnbg2; break;
+        case 2: fill = color_wbtnbg0; border = color_wbtnbg2; light = 1; break;
+        case 3: fill = color_wbtnbg3; border = color_wbtnbg3; light = 1; break;
     }
-    XSetForeground(dpy, gc, colors[sel ? color_inplght : color_winbg].pixel);
-    XDrawLine(dpy, win, gc, x+1, y-1, x+w-1, y-1);
-    XDrawLine(dpy, win, gc, x-1, y+1, x-1, y+fonth+7);
-    XDrawLine(dpy, win, gc, x+w+1, y+1, x+w+1, y+fonth+7);
-    XDrawLine(dpy, win, gc, x+1, y+fonth+9, x+w-1, y+fonth+9);
-
-    XSetForeground(dpy, gc, colors[bg1].pixel);
-    XFillRectangle(dpy, win, gc, x+2, y+2, w-2, fonta);
-    XDrawPoints(dpy, win, gc, border6, 4, CoordModeOrigin);
-    XSetForeground(dpy, gc, colors[bg0].pixel);
-    XDrawSegments(dpy, win, gc, border2, 3);
-    XDrawPoint(dpy, win, gc, x+2, y+2);
-    XDrawPoint(dpy, win, gc, x+w-2, y+2);
-
-    XSetForeground(dpy, gc, colors[inactive ? bg1 : bg3].pixel);
-    XFillRectangle(dpy, win, gc, x+2, y+fonta+1, w-2, fonth+8-fonta-1);
-    XDrawPoints(dpy, win, gc, border7, 4, CoordModeOrigin);
-    XSetForeground(dpy, gc, colors[bg2].pixel);
-    XDrawSegments(dpy, win, gc, border3, 3);
-    XDrawPoint(dpy, win, gc, x+2, y+fonth+6);
-    XDrawPoint(dpy, win, gc, x+w-2, y+fonth+6);
-
-    mainPrint(win, txtgc, x+7, y+5, w-10, style, txt);
-
-    XSetForeground(dpy, gc, colors[inactive ? color_btnbg2 : (sel ? color_inpdrk : color_btnbrd2)].pixel);
-    XDrawSegments(dpy, win, gc, border1, 4);
-    XSetForeground(dpy, gc, colors[inactive ? color_btnbg2 : (sel ? color_inpdrk : color_btnbrd1)].pixel);
-    XDrawPoints(dpy, win, gc, border4, 8, CoordModeOrigin);
-    XSetForeground(dpy, gc, colors[inactive ? color_btnbg2 : (sel ? color_inpdrk : color_btnbrd0)].pixel);
-    XDrawPoints(dpy, win, gc, border5, 12, CoordModeOrigin);
-
+    if(inactive) { fill = color_btnbg2; border = color_btnbg2; light = 0; }
+    mainFrame(win, x, y, w, fonth + 8, border, fill, sel);
+    if(light) {
+        /* white text on the destructive button */
+        XGetGCValues(dpy, txtgc, GCForeground, &v);
+        XSetForeground(dpy, txtgc, colors[color_inputbg].pixel);
+    }
+    mainPrint(win, txtgc, x+7, y+4, w-10, style, txt);
+    if(light) XSetForeground(dpy, txtgc, v.foreground);
 }
 
 static void mainBox(Window win, int x, int y, int w, int pressed, char *txt)
 {
-    XSetForeground(dpy, gc, colors[pressed ? color_btnbg1 : color_btnbg2].pixel);
-    XFillRectangle(dpy, win, gc, x+1, y+1, w-2, fonth/2+3);
-    XSetForeground(dpy, gc, colors[pressed ? color_btnbg2 : color_btnbg0].pixel);
-    XFillRectangle(dpy, win, gc, x+1, y+4+fonth/2, w-2, fonth/2+3);
+    XSetForeground(dpy, gc, colors[color_winbg].pixel);
+    XFillRectangle(dpy, win, gc, x, y, w + 1, fonth + 5);
+    fillRound(win, x, y, w + 1, fonth + 5, 4, pressed ? color_btnbg2 : color_btnbg3);
     mainPrint(win, txtgc, x+6, y+2, w-4, 0, txt);
-    XSetForeground(dpy, gc, colors[pressed ? color_btnbrd0 : color_btnbg0].pixel);
-    XDrawLine(dpy, win, gc, x, y, x+w, y);
-    XDrawLine(dpy, win, gc, x, y+1, x, y+4+fonth);
-    XSetForeground(dpy, gc, colors[pressed ? color_btnbg0 : color_btnbrd0].pixel);
-    XDrawLine(dpy, win, gc, x+w, y+1, x+w, y+3+fonth);
-    XDrawLine(dpy, win, gc, x, y+4+fonth, x+w, y+4+fonth);
 }
 
 static void mainCheckbox(Window win, int x, int y, int sel, int checked)
 {
-    XSetForeground(dpy, gc, colors[inactive ? color_btnbg2 : (sel ? color_inpdrk : color_btnbrd2)].pixel);
-    XDrawRectangle(dpy, win, gc, x, y, fonth, fonth);
-
-    XSetForeground(dpy, gc, colors[sel ? color_inplght : color_winbg].pixel);
-    XDrawLine(dpy, win, gc, x, y-1, x+fonth, y-1);
-    XDrawLine(dpy, win, gc, x-1, y, x-1, y+fonth);
-    XDrawLine(dpy, win, gc, x+fonth+1, y, x+fonth+1, y+fonth);
-    XDrawLine(dpy, win, gc, x, y+fonth+1, x+fonth, y+fonth+1);
-
-    XSetForeground(dpy, gc, colors[color_inpbrd1].pixel);
-    XDrawLine(dpy, win, gc, x+2, y+2, x+fonth-2, y+2);
-    XSetForeground(dpy, gc, colors[color_inpbrd2].pixel);
-    XDrawLine(dpy, win, gc, x+2, y+3, x+2, y+fonth-2);
-    XDrawLine(dpy, win, gc, x+fonth-2, y+2, x+fonth-2, y+fonth-3);
-    XSetForeground(dpy, gc, colors[color_inpbrd3].pixel);
-    XDrawLine(dpy, win, gc, x+3, y+fonth-2, x+fonth-2, y+fonth-2);
-    XSetForeground(dpy, gc, colors[inactive ? color_winbg : (checked ? color_inpdrk : color_inputbg)].pixel);
-    XFillRectangle(dpy, win, gc, x+3, y+3, fonth-5, fonth-5);
-
+    int on = checked && !inactive;
+    XPoint p[3] = {
+        { x + fonth * 26 / 100, y + fonth / 2 }, { x + fonth * 43 / 100, y + fonth * 70 / 100 },
+        { x + fonth * 76 / 100, y + fonth * 30 / 100 }
+    };
+    XSetForeground(dpy, gc, colors[color_winbg].pixel);
+    XFillRectangle(dpy, win, gc, x - 2, y - 2, fonth + 5, fonth + 5);
+    if(sel) fillRound(win, x - 2, y - 2, fonth + 5, fonth + 5, 5, color_inplght);
+    fillRound(win, x, y, fonth + 1, fonth + 1, 4, on || sel ? color_inpdrk : (inactive ? color_btnbg2 : color_inpbrd1));
+    if(!on) fillRound(win, x + 1, y + 1, fonth - 1, fonth - 1, 3, inactive ? color_winbg : color_inputbg);
     if(checked) {
-        XDrawRectangle(dpy, win, gc, x+2, y+2, fonth-4, fonth-4);
-        XSetForeground(dpy, gc, colors[inactive ? color_btnbg3 : color_inplght].pixel);
-        XDrawLine(dpy, win, gc, x+2, y+fonth/2, x+fonth/2-1, y+fonth-3);
-        XDrawLine(dpy, win, gc, x+5, y+fonth/2, x+fonth/2+2, y+fonth-3);
-        XDrawLine(dpy, win, gc, x+fonth/2, y+fonth-3, x+fonth-4, y+3);
-        XDrawLine(dpy, win, gc, x+fonth/2+1, y+fonth-3, x+fonth-2, y+3);
-        XSetForeground(dpy, gc, colors[inactive ? color_btnbrd1 : color_inputbg].pixel);
-        XDrawLine(dpy, win, gc, x+3, y+fonth/2, x+fonth/2, y+fonth-3);
-        XDrawLine(dpy, win, gc, x+4, y+fonth/2, x+fonth/2+1, y+fonth-3);
-        XDrawLine(dpy, win, gc, x+fonth/2+1, y+fonth-3, x+fonth-3, y+3);
+        XSetForeground(dpy, gc, colors[on ? color_inputbg : color_btnbrd2].pixel);
+        XSetLineAttributes(dpy, gc, fonth / 8 + 1, LineSolid, CapRound, JoinRound);
+        XDrawLines(dpy, win, gc, p, 3, CoordModeOrigin);
+        XSetLineAttributes(dpy, gc, 0, LineSolid, CapButt, JoinMiter);
     }
 }
 
 static void mainProgress(Window win, int x, int y, int w, int percentage)
 {
     int s;
-    XSegment border[4] = {
-        { x+1, y, x+w-1, y }, { x, y+1, x, y+4 },
-        { x+w, y+1, x+w, y+4 }, { x+1, y+5, x+w-1, y+5 }
-    };
     if(w < 2 || !mainwin) return;
-    s = (w - 2) * percentage / 100;
-    XSetForeground(dpy, gc, colors[color_btnbrd2].pixel);
-    XDrawSegments(dpy, win, gc, border, 4);
-    XSetForeground(dpy, gc, colors[inactive ? color_btnbg1 : color_btnbg3].pixel);
-    XDrawLine(dpy, win, gc, x+1+s, y+1, x+w-1, y+1);
-    if(inactive) XSetForeground(dpy, gc, colors[color_btnbg0].pixel);
-    XDrawLine(dpy, win, gc, x+1+s, y+2, x+w-1, y+2);
-    if(inactive) XSetForeground(dpy, gc, colors[color_inputbg].pixel);
-    XDrawLine(dpy, win, gc, x+1+s, y+3, x+w-1, y+3);
-    XDrawLine(dpy, win, gc, x+1+s, y+4, x+w-1, y+4);
-    if(s) {
-        XSetForeground(dpy, gc, colors[color_inplght].pixel);
-        XDrawLine(dpy, win, gc, x+1, y+1, x+1+s, y+1);
-        XDrawLine(dpy, win, gc, x+1, y+1, x+1, y+4);
-        XSetForeground(dpy, gc, colors[color_inpdrk].pixel);
-        XDrawLine(dpy, win, gc, x+2, y+2, x+1+s, y+2);
-        XDrawLine(dpy, win, gc, x+2, y+3, x+1+s, y+3);
-        XDrawLine(dpy, win, gc, x+2, y+4, x+1+s, y+4);
-    }
+    s = (w + 1) * percentage / 100;
+    XSetForeground(dpy, gc, colors[color_winbg].pixel);
+    XFillRectangle(dpy, win, gc, x, y, w + 1, 6);
+    fillRound(win, x, y, w + 1, 6, 3, color_inpbrd2);
+    if(s > 0) fillRound(win, x, y, s < 6 ? 6 : s, 6, 3, color_inpdrk);
 }
 
 static Window mainModal(int *mw, int *mh, int bgcolor)
@@ -432,7 +450,7 @@ static Window mainModal(int *mw, int *mh, int bgcolor)
     x -= wa.x; y -= wa.y;
     nx = x + (frame_left ? frame_left : wa.border_width) + wa.width/2; ny = y + frame_top;
     win = XCreateSimpleWindow(dpy, RootWindow(dpy, scr), nx, ny, 1, 1,
-        0, 0, colors[bgcolor].pixel);
+        1, colors[color_inpbrd1].pixel, colors[bgcolor].pixel);
     XSelectInput(dpy, win, ExposureMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask |
         KeyPressMask | KeyReleaseMask);
     swa.override_redirect = True;
@@ -468,7 +486,7 @@ static int mainCombo(int sel, int num, char *list, int dx, int dy, int w)
     if(!w) w = wa.width-25;
     if(dx<0) dx += wa.width + frame_left + 1; else dx += frame_left;
     win = XCreateSimpleWindow(dpy, root, x+dx, y+dy-sel*(fonth+8),
-        w, num*(fonth+8), 0, 0, colors[color_inputbg].pixel);
+        w, num*(fonth+8), 1, colors[color_inpbrd1].pixel, colors[color_inputbg].pixel);
     XSelectInput(dpy, win, ExposureMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask |
         KeyPressMask | KeyReleaseMask | FocusChangeMask | LeaveWindowMask);
     swa.override_redirect = True;
@@ -512,7 +530,7 @@ static int mainCombo(int sel, int num, char *list, int dx, int dy, int w)
             for(x = 0; x < num; x++) {
                 XSetForeground(dpy, gc, colors[sel == x ? color_inpdrk : color_inputbg].pixel);
                 XFillRectangle(dpy, win, gc, 0, x*(fonth+8), wa.width - 25, fonth+8);
-                mainPrint(win, sel == x ? shdgc : txtgc, 4, 4 + x*(fonth+8), w - 4, 0, list + x*128);
+                mainPrint(win, sel == x ? shdgc : txtgc, 8, 4 + x*(fonth+8), w - 8, 0, list + x*128);
             }
         }
         if(e.type == ButtonRelease) { break; }
@@ -524,13 +542,24 @@ static int mainCombo(int sel, int num, char *list, int dx, int dy, int w)
     return sel;
 }
 
+/**
+ * Draw an arrow left to a button's centered label
+ */
+static void mainLabelArrow(int x, int y, int w, char *label, int down, int color)
+{
+    int a = fonth / 4 < 3 ? 3 : fonth / 4;
+    int tx = x + 7 + (w - 10 - mainPrint(mainwin, txtgc, 0, 0, 0, 0, label)) / 2 - 1;
+    if(tx - 2*a - 8 > x + 4)
+        mainArrow(mainwin, tx - a - 8, y + (fonth + 8) / 2, down, color);
+}
+
 static void mainRedraw(void)
 {
 #if !defined(USE_WRONLY) || !USE_WRONLY
-    XRectangle clip = { 17, 25+fonth, 0, fonth+8 };
     int x, old = inactive;
 #endif
     int ser = targetId >= 0 && targetId < DISKS_MAX && disks_targets[targetId] >= 1024 ? 1 : 0;
+    int fg = inactive ? color_btnbrd2 : color_fg;
 
     XWindowAttributes  wa;
     XGetWindowAttributes(dpy, mainwin, &wa);
@@ -540,88 +569,42 @@ static void mainRedraw(void)
         XFillRectangle(dpy, mainwin, gc, 10, wa.height-4-fonth, wa.width - 20, fonth);
         mainPrint(mainwin, statgc, 10, wa.height-4-fonth, wa.width - 20, 0, status);
     }
-    XSetForeground(dpy, txtgc, colors[inactive ? color_btnbrd2 : color_fg].pixel);
+    XSetForeground(dpy, txtgc, colors[fg].pixel);
     mainInputBox(mainwin, 10,10, wa.width-55, mainsel==0, source);
     mainButton(mainwin, wa.width>50?wa.width-40:10,10, 30, mainsel==0, pressedBtn == 1 ? 1 : 0, 5, "...");
 
 #if !defined(USE_WRONLY) || !USE_WRONLY
-    half = clip.width = wa.width/2;
+    half = wa.width/2;
     if(ser && mainsel == 2) mainsel--;
     mainButton(mainwin, 10, 25+fonth, half - 15, mainsel==1, pressedBtn == 2 ? 3 : 2, 5, lang[ser ? L_SEND : L_WRITE]);
-    x = mainPrint(mainwin, txtgc, 0, 0, 0, 0, lang[L_WRITE]);
-    if(x < half - 15) {
-        x = (half - 15 - x) / 2 - 6;
-        XSetClipRectangles(dpy, gc, 0, 0, &clip, 1, Unsorted);
-        XSetForeground(dpy, gc, colors[inactive ? color_btnbrd2 : color_btnbrd0].pixel);
-        XDrawLine(dpy, mainwin, gc, x, 25+fonth+fonth/2+2, x+11, 25+fonth+fonth/2+2);
-        XSetForeground(dpy, gc, colors[inactive ? color_btnbrd2 : color_wbtnbg0].pixel);
-        XDrawLine(dpy, mainwin, gc, x+1, 25+fonth+fonth/2+3, x+5, 25+fonth+fonth/2+7);
-        XSetForeground(dpy, gc, colors[inactive ? color_btnbrd2 : color_inputbg].pixel);
-        XDrawLine(dpy, mainwin, gc, x+6, 25+fonth+fonth/2+8, x+12, 25+fonth+fonth/2+2);
-        if(!inactive) {
-            XSetForeground(dpy, gc, colors[color_wrbtn].pixel);
-            XDrawLine(dpy, mainwin, gc, x+2, 25+fonth+fonth/2+3, x+10, 25+fonth+fonth/2+3);
-            XDrawLine(dpy, mainwin, gc, x+3, 25+fonth+fonth/2+4, x+9, 25+fonth+fonth/2+4);
-            XDrawLine(dpy, mainwin, gc, x+4, 25+fonth+fonth/2+5, x+8, 25+fonth+fonth/2+5);
-            XDrawLine(dpy, mainwin, gc, x+5, 25+fonth+fonth/2+6, x+7, 25+fonth+fonth/2+6);
-            XDrawPoint(dpy, mainwin, gc, x+6, 25+fonth+fonth/2+7);
-        }
-        XSetClipMask(dpy, gc, None);
-    }
+    mainLabelArrow(10, 25+fonth, half - 15, lang[ser ? L_SEND : L_WRITE], 1, inactive ? color_btnbrd2 : color_wrbtn);
     if(ser) { inactive = 1; XSetForeground(dpy, txtgc, colors[color_btnbrd2].pixel); }
     mainButton(mainwin, half+5, 25+fonth, half - 15, mainsel==2, pressedBtn == 3 ? 1 : 0, 5, lang[L_READ]);
-    x = mainPrint(mainwin, txtgc, 0, 0, 0, 0, lang[L_READ]);
-    if(x < half - 15) {
-        x = (half - 15 - x) / 2 - 11 + half;
-        clip.x = half + 12;
-        XSetClipRectangles(dpy, gc, 0, 0, &clip, 1, Unsorted);
-        XSetForeground(dpy, gc, colors[inactive ? color_btnbrd2 : color_inputbg].pixel);
-        XDrawLine(dpy, mainwin, gc, x, 25+fonth+fonth/2+8, x+12, 25+fonth+fonth/2+8);
-        XSetForeground(dpy, gc, colors[inactive ? color_btnbrd2 : color_btnbrd2].pixel);
-        XDrawLine(dpy, mainwin, gc, x+1, 25+fonth+fonth/2+7, x+6, 25+fonth+fonth/2+2);
-        XSetForeground(dpy, gc, colors[inactive ? color_btnbrd2 : color_btnbrd0].pixel);
-        XDrawLine(dpy, mainwin, gc, x+7, 25+fonth+fonth/2+3, x+11, 25+fonth+fonth/2+7);
-        if(!inactive) {
-            XSetForeground(dpy, gc, colors[color_rdbtn].pixel);
-            XDrawPoint(dpy, mainwin, gc, x+6, 25+fonth+fonth/2+3);
-            XDrawLine(dpy, mainwin, gc, x+5, 25+fonth+fonth/2+4, x+7, 25+fonth+fonth/2+4);
-            XDrawLine(dpy, mainwin, gc, x+4, 25+fonth+fonth/2+5, x+8, 25+fonth+fonth/2+5);
-            XDrawLine(dpy, mainwin, gc, x+3, 25+fonth+fonth/2+6, x+9, 25+fonth+fonth/2+6);
-            XDrawLine(dpy, mainwin, gc, x+2, 25+fonth+fonth/2+7, x+10, 25+fonth+fonth/2+7);
-        }
-        XSetClipMask(dpy, gc, None);
-    }
-    if(ser) { inactive = old; XSetForeground(dpy, txtgc, colors[inactive ? color_btnbrd2 : color_fg].pixel); }
+    mainLabelArrow(half+5, 25+fonth, half - 15, lang[L_READ], 0, inactive ? color_btnbrd2 : color_rdbtn);
+    if(ser) { inactive = old; XSetForeground(dpy, txtgc, colors[fg].pixel); }
 
     mainButton(mainwin, 10, 40+2*fonth, wa.width>30?wa.width-20:10, mainsel==3, pressedBtn == 4 ? 1 : 0, 4,
         targetId >= 0 && targetId < numTargetList ? targetList[targetId] : "");
-    XDrawLine(dpy, mainwin, txtgc, wa.width - 23, 43+2*fonth+fonth/2, wa.width - 17, 43+2*fonth+fonth/2);
-    XDrawLine(dpy, mainwin, txtgc, wa.width - 22, 44+2*fonth+fonth/2, wa.width - 18, 44+2*fonth+fonth/2);
-    XDrawLine(dpy, mainwin, txtgc, wa.width - 21, 45+2*fonth+fonth/2, wa.width - 19, 45+2*fonth+fonth/2);
-    XDrawLine(dpy, mainwin, txtgc, wa.width - 20, 46+2*fonth+fonth/2, wa.width - 20, 46+2*fonth+fonth/2);
+    mainArrow(mainwin, wa.width - 22, 40+2*fonth + (fonth+8)/2, 1, fg);
 
     mainCheckbox(mainwin, 15, 59+3*fonth, mainsel==4, needVerify);
-    if(half > 55 + fonth) mainPrint(mainwin, txtgc, 20 + fonth, 59+3*fonth, half - 45 - fonth, 0, lang[L_VERIFY]);
+    if(half > 55 + fonth) mainPrint(mainwin, txtgc, 22 + fonth, 59+3*fonth, half - 47 - fonth, 0, lang[L_VERIFY]);
     mainCheckbox(mainwin, half - 25 > 20 + fonth ? half - 25: 20 + fonth, 59+3*fonth, mainsel==5, needCompress);
-    x = half - 20 + fonth > 25 + 2*fonth ? half - 20 + fonth : 25 + 2*fonth;
-    if(wa.width-70-x > 0) mainPrint(mainwin, txtgc, x, 59+3*fonth, wa.width-60-x, 0, lang[L_COMPRESS]);
+    x = half - 18 + fonth > 27 + 2*fonth ? half - 18 + fonth : 27 + 2*fonth;
+    if(wa.width-26-BLKW-x > 0) mainPrint(mainwin, txtgc, x, 59+3*fonth, wa.width-18-BLKW-x, 0, lang[L_COMPRESS]);
     if(wa.width-80-2*fonth > 0) {
-        mainButton(mainwin, wa.width-64, 55+3*fonth, 54, mainsel==6, pressedBtn == 5 ? 1 : 0, 4, blksizeList[blksizesel]);
-        XDrawLine(dpy, mainwin, txtgc, wa.width - 23, 58+3*fonth+fonth/2, wa.width - 17, 58+3*fonth+fonth/2);
-        XDrawLine(dpy, mainwin, txtgc, wa.width - 22, 59+3*fonth+fonth/2, wa.width - 18, 59+3*fonth+fonth/2);
-        XDrawLine(dpy, mainwin, txtgc, wa.width - 21, 60+3*fonth+fonth/2, wa.width - 19, 60+3*fonth+fonth/2);
-        XDrawLine(dpy, mainwin, txtgc, wa.width - 20, 61+3*fonth+fonth/2, wa.width - 20, 61+3*fonth+fonth/2);
+        mainButton(mainwin, wa.width-10-BLKW, 55+3*fonth, BLKW, mainsel==6, pressedBtn == 5 ? 1 : 0, 4, blksizeList[blksizesel]);
+        mainArrow(mainwin, wa.width - 22, 55+3*fonth + (fonth+8)/2, 1, fg);
     }
 #else
     mainButton(mainwin, 10, 25+fonth, wa.width>30?wa.width-20:10, mainsel==1, pressedBtn == 4 ? 1 : 0, 4,
         targetId >= 0 && targetId < numTargetList ? targetList[targetId] : "");
-    XDrawLine(dpy, mainwin, txtgc, wa.width - 23, 28+fonth+fonth/2, wa.width - 17, 28+fonth+fonth/2);
-    XDrawLine(dpy, mainwin, txtgc, wa.width - 22, 29+fonth+fonth/2, wa.width - 18, 29+fonth+fonth/2);
-    XDrawLine(dpy, mainwin, txtgc, wa.width - 21, 30+fonth+fonth/2, wa.width - 19, 30+fonth+fonth/2);
-    XDrawLine(dpy, mainwin, txtgc, wa.width - 20, 31+fonth+fonth/2, wa.width - 20, 31+fonth+fonth/2);
+    mainArrow(mainwin, wa.width - 22, 25+fonth + (fonth+8)/2, 1, fg);
 
     mainButton(mainwin, 10, 40+2*fonth, wa.width>30?wa.width-20:10, mainsel==2, pressedBtn == 2 ? 3 : 2, 5,
         lang[ser ? L_SEND : L_WRITE]);
+    mainLabelArrow(10, 40+2*fonth, wa.width>30?wa.width-20:10, lang[ser ? L_SEND : L_WRITE], 1,
+        inactive ? color_btnbrd2 : color_wrbtn);
 #endif
 }
 
@@ -639,6 +622,7 @@ void main_getErrorMessage(void)
 
 static void onQuit(void)
 {
+    if(xftfont) { xft.FontClose(dpy, xftfont); xftfont = NULL; }
 #ifdef USE_UNIFONT
     if(fnt) free(fnt);
     if(ws) free(ws);
@@ -726,7 +710,7 @@ static void onThreadError(void *data)
     mw = mainPrint(mainwin, txtgc, 0, 0, 0, 2, (char*)data) + 40;
     if(w > mw) mw = w;
 
-    win = mainModal(&mw, &mh, color_inputbg);
+    win = mainModal(&mw, &mh, color_winbg);
 
     while(1) {
         XNextEvent(dpy, &e);
@@ -981,7 +965,7 @@ static void onBlkSizeClicked(void)
 {
     int sel;
 
-    sel = mainCombo(blksizesel, 10, (char*)&blksizeList[0][0], -62, 56+3*fonth, 49);
+    sel = mainCombo(blksizesel, 10, (char*)&blksizeList[0][0], -9-BLKW, 56+3*fonth, BLKW-4);
     if(sel != -1) { blksizesel = sel; buffer_size = (1UL<<sel) * 1024UL * 1024UL; }
     mainRedraw();
     XRaiseWindow(dpy, mainwin);
@@ -1326,8 +1310,11 @@ ok:             if(selFile >=0 && selFile < numFiles) {
             XDrawLine(dpy, win, gc, mw-9, 20+fonth, mw-9, mh-fonth-25);
             XDrawLine(dpy, win, gc, 204, mh-fonth-24, mw-9, mh-fonth-24);
 
-            XSetForeground(dpy, gc, colors[color_inputbg].pixel);
-            XFillRectangle(dpy, win, gc, 10, y, 190, mh-fonth-25-y);
+            /* the height would be negative (that is, huge) when the last item reaches the bottom */
+            if(y < mh-fonth-25) {
+                XSetForeground(dpy, gc, colors[color_inputbg].pixel);
+                XFillRectangle(dpy, win, gc, 10, y, 190, mh-fonth-25-y);
+            }
             if(refresh || pressedPath != -1 || pressedBtn > 1) {
                 refresh = 0;
                 XSetForeground(dpy, gc, colors[color_winbg].pixel);
@@ -1597,7 +1584,8 @@ int main(int argc, char **argv)
                     case 'L': lc = &argv[j][++i]; ++i; break;
                     case 'm': disks_maxsize = atoi(&argv[j][++i]); continue;
 #ifndef USE_UNIFONT
-                    case 'F': fontName = &argv[j][++i]; ++j; i = 0; break;
+                    /* the rest of the argument is the font name */
+                    case 'F': fontName = &argv[j][i+1]; while(argv[j][i+1]) i++; break;
 #endif
                 }
         } else
@@ -1637,6 +1625,16 @@ int main(int argc, char **argv)
 
     txtgc = DefaultGC(dpy, scr);
     XSetForeground(dpy, txtgc, BlackPixel(dpy, scr));
+    /* prefer the desktop's fonts through fontconfig. Size is in points, so Xft.dpi (HiDPI) is honored.
+     * A user specified XLFD (starting with '-') means core fonts, anything else is a fontconfig pattern */
+#ifndef USE_UNIFONT
+    if(!(fontName && fontName[0] == '-') && xftOpen(dpy, scr, fontName ? fontName : "sans-serif:size=10")) {
+#else
+    if(xftOpen(dpy, scr, "sans-serif:size=10")) {
+#endif
+        fonth = xftfont->ascent + xftfont->descent; fonta = xftfont->ascent;
+        if(verbose) printf(" Xft font height: %d ascent: %d\n", fonth, fonta);
+    } else {
 #ifdef USE_UNIFONT
     memset(&zstrm, 0, sizeof(zstrm));
     if((fnt = (uint8_t*)malloc(UNIFONT_SIZE)) && (ws = (char*)malloc(65536)) && (inflateInit2(&zstrm, -MAX_WBITS) == Z_OK)) {
@@ -1695,10 +1693,11 @@ int main(int argc, char **argv)
         printf(" X11 font: '%s' height: %d ascent: %d\n", XGetAtomName(dpy, (Atom)n), fonth, fonta);
     }
 #endif
+    }
     loading = XCreateFontCursor(dpy, XC_watch);
     pointer = XCreateFontCursor(dpy, XC_left_ptr);
 
-    mainwin = XCreateSimpleWindow(dpy, RootWindow(dpy, scr), 0, 0, 480,
+    mainwin = XCreateSimpleWindow(dpy, RootWindow(dpy, scr), 0, 0, fonth > 18 ? 480 * fonth / 18 : 480,
 #if !defined(USE_WRONLY) || !USE_WRONLY
         90+5*fonth,
 #else
@@ -1722,9 +1721,11 @@ int main(int argc, char **argv)
     XRaiseWindow(dpy, mainwin);
     shdgc = XCreateGC(dpy, mainwin, 0, NULL);
     XCopyGC(dpy, txtgc, 0xFFFFFFFF, shdgc);
-    XSetForeground(dpy, shdgc, colors[color_btnbg1].pixel);
+    /* text on the accent color */
+    XSetForeground(dpy, shdgc, colors[color_inputbg].pixel);
     statgc = XCreateGC(dpy, mainwin, 0, NULL);
     XCopyGC(dpy, txtgc, 0xFFFFFFFF, statgc);
+    XSetForeground(dpy, statgc, colors[color_rdbtn].pixel);
     gc = XCreateGC(dpy, mainwin, 0, NULL);
     XCopyGC(dpy, txtgc, 0xFFFFFFFF, gc);
     icons_act = XCreatePixmapFromBitmapData(dpy, mainwin, (char*)icons_bits,
@@ -1735,7 +1736,7 @@ int main(int argc, char **argv)
     memset(source, 0, sizeof(source));
     memset(status, 0, sizeof(status));
     for(i = 0; i < 10; i++)
-        sprintf(blksizeList[i], "%3dM", (1<<i));
+        sprintf(blksizeList[i], "%d %s", (1<<i), lang[L_MIB]);
     refreshTarget();
 
     /* without a window manager these atoms don't exist, and querying None is a fatal X error */
@@ -1837,7 +1838,7 @@ int main(int argc, char **argv)
             if(e.xbutton.y >=40 + 2*fonth && e.xbutton.y < 40 + 3*fonth + 8) pressedBtn = 4; else
             if(e.xbutton.y >=55 + 3*fonth && e.xbutton.y < 55 + 4*fonth + 8) {
                 if(e.xbutton.x < (half - 25 > 20 + fonth ? half - 25: 20 + fonth)) needVerify ^= 1;
-                else if(2*half-80-2*fonth > 0 && e.xbutton.x > 2*half - 60) pressedBtn = 5;
+                else if(2*half-80-2*fonth > 0 && e.xbutton.x > 2*half - 10 - BLKW) pressedBtn = 5;
                 else needCompress ^= 1;
             }
 #else

@@ -117,7 +117,7 @@ ifneq ($(USE_UNIFONT),)
 CFLAGS += -DUSE_UNIFONT
 UF = _uf
 endif
-LIBS += -lX11
+LIBS += -lX11 -ldl
 FRM = linux-x11
 GRP = disk
 else
